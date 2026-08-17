@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>EuroStock Scout v2.4</title>
+<title>EuroStock Scout v2.5</title>
 <style>
 :root{--bg:#07111f;--card:#0e1b2e;--card2:#091629;--line:#203550;--text:#f5f7fb;--muted:#94a6bd;--green:#42dda0;--amber:#f3c861;--red:#ff7782;--blue:#77aaff;--chip:#152741}
 *{box-sizing:border-box}html,body{margin:0;background:linear-gradient(180deg,#07111f,#091629 48%,#07111f);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
@@ -37,8 +37,8 @@ footer{font-size:10.5px;color:var(--muted);line-height:1.5;padding:7px 3px}
 <body>
 <main>
 <header>
-<h1>EuroStock Scout <span style="color:#77aaff">v2.4</span></h1>
-<div class="subtitle">Europe + Canada · Marketstack EOD · robust Marketstack response parsing · beta ≈ 1 · dividends · 3–4% trade target.</div>
+<h1>EuroStock Scout <span style="color:#77aaff">v2.5</span></h1>
+<div class="subtitle">Europe + Canada · Marketstack EOD · direct daily-return beta alignment · dividends · 3–4% trade target.</div>
 </header>
 
 <section class="card">
@@ -60,7 +60,7 @@ footer{font-size:10.5px;color:var(--muted);line-height:1.5;padding:7px 3px}
 <button class="secondary" onclick="saveKey()">Save key on this device</button>
 <button class="secondary" onclick="testConnection()">Test API connection</button>
 <button class="secondary" onclick="clearMappings()">Clear saved ticker mappings</button>
-<div class="warnbox" style="margin-top:9px">v2.4 accepts both array and wrapped-object Marketstack EOD response formats. If a ticker does not return data, the app searches Marketstack's ticker directory, verifies the expected exchange MIC, saves the resolved mapping locally, then retries.</div>
+<div class="warnbox" style="margin-top:9px">v2.5 calculates beta directly from aligned daily returns instead of a synthetic price index. If a ticker does not return data, the app searches Marketstack's ticker directory, verifies the expected exchange MIC, saves the resolved mapping locally, then retries.</div>
 </section>
 
 <section class="card">
@@ -140,9 +140,9 @@ function setStatus(x,c=""){const e=document.getElementById("status");e.className
 function setProgress(x){document.getElementById("bar").style.width=clamp(x,0,100)+"%"}
 function chooseMarket(m){market=m;document.getElementById("euBtn").classList.toggle("active",m==="Europe");document.getElementById("caBtn").classList.toggle("active",m==="Canada");document.getElementById("budgetLabel").textContent=m==="Canada"?"Budget (C$)":"Budget (€)";document.getElementById("marketHint").textContent=`${m} selected · portfolio currency ${currency()}.`;state={rows:[],plan:[],view:"plan",timestamp:null,benchmark:"",source:""};render()}
 function saveKey(){const k=document.getElementById("apiKey").value.trim();if(k){localStorage.setItem("euroScoutMSKey",k);setStatus("Marketstack key saved locally on this device.","ok")}else{localStorage.removeItem("euroScoutMSKey");setStatus("Saved key removed.","ok")}}
-function clearMappings(){Object.keys(localStorage).filter(k=>k.startsWith("ESS24MAP|")).forEach(k=>localStorage.removeItem(k));setStatus("Saved ticker mappings cleared.","ok")}
+function clearMappings(){Object.keys(localStorage).filter(k=>k.startsWith("ESS25MAP|")).forEach(k=>localStorage.removeItem(k));setStatus("Saved ticker mappings cleared.","ok")}
 function opt(){return{budget:+document.getElementById("budget").value||5000,target:+document.getElementById("target").value,pref:+document.getElementById("preferredBeta").value,tol:+document.getElementById("betaTolerance").value,max:+document.getElementById("maxPositions").value,risk:document.getElementById("riskStyle").value,days:+document.getElementById("history").value}}
-function cacheKey(){return `ESS24SCAN|${market}|${document.getElementById("scanSize").value}|${document.getElementById("history").value}`}
+function cacheKey(){return `ESS25SCAN|${market}|${document.getElementById("scanSize").value}|${document.getElementById("history").value}`}
 function getCache(){try{const v=JSON.parse(localStorage.getItem(cacheKey())||"null");if(v&&Date.now()-v.saved<24*3600*1000)return v}catch{}return null}
 function putCache(x){try{localStorage.setItem(cacheKey(),JSON.stringify({saved:Date.now(),payload:x}))}catch{}}
 async function apiJSON(url){const r=await fetch(url);let d={};try{d=await r.json()}catch{}if(!r.ok||d.error)throw new Error(d?.error?.message||d?.message||`HTTP ${r.status}`);return d}
@@ -162,7 +162,7 @@ function asArrayPayload(d){
   if(Array.isArray(d.values)) return d.values;
   return [];
 }
-function mapKey(i){return `ESS24MAP|${i.n}|${i.m}`}
+function mapKey(i){return `ESS25MAP|${i.n}|${i.m}`}
 function getSavedMap(i){try{return JSON.parse(localStorage.getItem(mapKey(i))||"null")}catch{return null}}
 function saveMap(i,x){try{localStorage.setItem(mapKey(i),JSON.stringify(x))}catch{}}
 
@@ -224,9 +224,38 @@ async function dividendData(item,key,price){
  }
 }
 function dateMap(v){const m=new Map();for(const x of v){const d=(x.date||x.datetime||"").slice(0,10),c=+(x.adj_close??x.close);if(d&&Number.isFinite(c))m.set(d,c)}return m}
-function basket(downloads){let maps=downloads.map(d=>({id:d.item.s+"|"+d.item.m,map:dateMap(d.rows)}));let dates=[...new Set(maps.flatMap(x=>[...x.map.keys()]))].sort(),prev=new Map(),idx=100,out=new Map();for(const d of dates){let rr=[];for(const x of maps){if(x.map.has(d)){let c=x.map.get(d),pr=prev.get(x.id);if(pr)rr.push(c/pr-1);prev.set(x.id,c)}}if(rr.length){idx*=1+mean(rr);out.set(d,idx)}}return out}
-function beta(sm,bm){const dates=[...sm.keys()].filter(d=>bm.has(d)).sort();if(dates.length<40)return null;let a=[],b=[];for(let i=1;i<dates.length;i++){let d0=dates[i-1],d1=dates[i];a.push(sm.get(d1)/sm.get(d0)-1);b.push(bm.get(d1)/bm.get(d0)-1)}const v=variance(b);return v?covariance(a,b)/v:null}
-function analyze(i,rows,bm,op){const c=rows.map(x=>+(x.adj_close??x.close)).filter(Number.isFinite);if(c.length<60)throw new Error("Not enough history");const price=c.at(-1),s20=sma(c,20),s50=sma(c,50),R=rsi(c),mom=roc(c,20),A=atr(rows),ap=A/price*100,B=beta(dateMap(rows),bm);if(B===null)throw new Error("Beta unavailable");const dist=Math.abs(B-op.pref),bs=100*clamp(1-dist/(op.tol*1.8),0,1);let ts=50;ts+=price>s20?20:-15;ts+=s20>s50?20:-15;if(price>s50)ts+=10;ts=clamp(ts,0,100);const rs=R>=48&&R<=63?100:R>=42&&R<=68?82:R>=35&&R<=72?58:25,ms=clamp(55+mom*5,10,100),risk=ap<1.2?95:ap<2?82:ap<3?65:ap<4.5?45:25,score=.30*bs+.25*ts+.20*rs+.15*ms+.10*risk;let signal="AVOID";if(score>=68&&dist<=op.tol&&R>=42&&R<=68&&price>=s50*.98)signal="BUY ZONE";else if(score>=55&&dist<=op.tol*1.25)signal="WAIT";const low=price-Math.min(A*.35,price*.012),high=price*1.002,entry=(low+high)/2,sm=op.risk==="tight"?1.05:op.risk==="wide"?1.75:1.35,stop=Math.max(entry-A*sm,entry*.94),target=entry*(1+op.target);return{...i,price,beta:B,rsi:R,momentum:mom,atr:A,atrPct:ap,sma20:s20,sma50:s50,score,scoutGrade:grade(score),signal,entryLow:low,entryHigh:high,entry,stop,target,rr:(target-entry)/(entry-stop),currency:currency(),dividend:{status:"Unavailable",yield:null,total:null},reasons:[dist<=op.tol?`beta ${B.toFixed(2)} is inside your band`:`beta ${B.toFixed(2)} is outside your band`,price>s20&&s20>s50?"trend is aligned bullish":price>s50?"trend is mixed":"trend is weak",R>68?`RSI ${R.toFixed(0)} is stretched`:R<42?`RSI ${R.toFixed(0)} is weak`:`RSI ${R.toFixed(0)} is constructive`,`${mom>=0?"+":""}${mom.toFixed(1)}% 20-day momentum`]}}
+function stockReturnMap(rows){
+ const px=dateMap(rows),dates=[...px.keys()].sort(),out=new Map();
+ for(let i=1;i<dates.length;i++){
+   const d0=dates[i-1],d1=dates[i],p0=px.get(d0),p1=px.get(d1);
+   if(Number.isFinite(p0)&&Number.isFinite(p1)&&p0!==0) out.set(d1,p1/p0-1);
+ }
+ return out;
+}
+function marketReturnMap(downloads){
+ const buckets=new Map();
+ for(const d of downloads){
+   const rm=stockReturnMap(d.rows);
+   for(const [date,r] of rm){
+     if(!buckets.has(date)) buckets.set(date,[]);
+     if(Number.isFinite(r)) buckets.get(date).push(r);
+   }
+ }
+ const out=new Map();
+ for(const [date,arr] of buckets){
+   if(arr.length>=2) out.set(date,mean(arr));
+ }
+ return out;
+}
+function betaFromReturns(stockRows,marketReturns){
+ const sr=stockReturnMap(stockRows);
+ const dates=[...sr.keys()].filter(d=>marketReturns.has(d)).sort();
+ if(dates.length<30) return null;
+ const a=dates.map(d=>sr.get(d)),b=dates.map(d=>marketReturns.get(d));
+ const v=variance(b);
+ return v?covariance(a,b)/v:null;
+}
+function analyze(i,rows,bm,op){const c=rows.map(x=>+(x.adj_close??x.close)).filter(Number.isFinite);if(c.length<60)throw new Error("Not enough history");const price=c.at(-1),s20=sma(c,20),s50=sma(c,50),R=rsi(c),mom=roc(c,20),A=atr(rows),ap=A/price*100,B=betaFromReturns(rows,bm);if(B===null)throw new Error("Beta unavailable: fewer than 30 aligned daily-return sessions");const dist=Math.abs(B-op.pref),bs=100*clamp(1-dist/(op.tol*1.8),0,1);let ts=50;ts+=price>s20?20:-15;ts+=s20>s50?20:-15;if(price>s50)ts+=10;ts=clamp(ts,0,100);const rs=R>=48&&R<=63?100:R>=42&&R<=68?82:R>=35&&R<=72?58:25,ms=clamp(55+mom*5,10,100),risk=ap<1.2?95:ap<2?82:ap<3?65:ap<4.5?45:25,score=.30*bs+.25*ts+.20*rs+.15*ms+.10*risk;let signal="AVOID";if(score>=68&&dist<=op.tol&&R>=42&&R<=68&&price>=s50*.98)signal="BUY ZONE";else if(score>=55&&dist<=op.tol*1.25)signal="WAIT";const low=price-Math.min(A*.35,price*.012),high=price*1.002,entry=(low+high)/2,sm=op.risk==="tight"?1.05:op.risk==="wide"?1.75:1.35,stop=Math.max(entry-A*sm,entry*.94),target=entry*(1+op.target);return{...i,price,beta:B,rsi:R,momentum:mom,atr:A,atrPct:ap,sma20:s20,sma50:s50,score,scoutGrade:grade(score),signal,entryLow:low,entryHigh:high,entry,stop,target,rr:(target-entry)/(entry-stop),currency:currency(),dividend:{status:"Unavailable",yield:null,total:null},reasons:[dist<=op.tol?`beta ${B.toFixed(2)} is inside your band`:`beta ${B.toFixed(2)} is outside your band`,price>s20&&s20>s50?"trend is aligned bullish":price>s50?"trend is mixed":"trend is weak",R>68?`RSI ${R.toFixed(0)} is stretched`:R<42?`RSI ${R.toFixed(0)} is weak`:`RSI ${R.toFixed(0)} is constructive`,`${mom>=0?"+":""}${mom.toFixed(1)}% 20-day momentum`]}}
 function buildPlan(rows,op){const e=rows.filter(x=>x.signal==="BUY ZONE").sort((a,b)=>b.score-a.score).slice(0,op.max);if(!e.length)return[];const w=e.map(x=>Math.max(15,x.score)),sum=w.reduce((a,b)=>a+b,0);return e.map((x,i)=>{const a=op.budget*w[i]/sum,shares=Math.floor(a/x.entry),used=shares*x.entry;return shares?{...x,shares,used,grossTarget:used*op.target,maxModelLoss:shares*(x.entry-x.stop)}:null}).filter(Boolean)}
 async function testConnection(){const key=document.getElementById("apiKey").value.trim();if(!key)return setStatus("Enter your Marketstack API key first.","err");const t=market==="Canada"?canada[0]:europe[0];setStatus(`Resolving ${t.n} on ${t.m}…`);try{const r=await eodFor(t,key,45);if(!r.rows.length)throw new Error(`Ticker resolved, but Marketstack returned no historical EOD rows for ${r.item.rs} on ${r.item.rm}. The app tried both exchange-specific and generic EOD routes.`);setStatus(`Connection works. ${r.item.rs} on ${r.item.rm}: ${r.rows.length} EOD rows returned.`,"ok")}catch(e){setStatus(`<b>API test failed:</b> ${e.message}`,"err")}}
 async function scan(force){
@@ -236,9 +265,9 @@ async function scan(force){
  state={rows:[],plan:[],view:"plan",timestamp:null,benchmark:"",source:"live"};let dl=[],errors=[];
  for(let i=0;i<items.length;i++){const it=items[i];setStatus(`Resolving/downloading ${it.n} · ${i+1}/${items.length}…`);try{const d=await eodFor(it,key,op.days);if(d.rows.length>=60)dl.push(d);else errors.push(`${it.n}: ${d.rows.length} rows`)}catch(e){errors.push(`${it.n}: ${e.message}`)}setProgress(5+55*(i+1)/items.length)}
  if(dl.length<2){setProgress(0);return setStatus(`<b>Too few stocks downloaded.</b> ${errors.join(" | ")}`,"err")}
- const bm=basket(dl);state.benchmark=`Equal-weight ${market} scan basket`;
+ const bm=marketReturnMap(dl);state.benchmark=`Equal-weight ${market} daily-return benchmark (${bm.size} aligned sessions)`;
  for(const d of dl){try{state.rows.push(analyze(d.item,d.rows,bm,op))}catch(e){errors.push(`${d.item.n}: ${e.message}`)}}
- if(!state.rows.length){setProgress(0);return setStatus("Data downloaded, but no stocks had enough aligned history to calculate the indicators.","err")}
+ if(!state.rows.length){setProgress(0);return setStatus(`<b>Data downloaded, but beta could not be calculated.</b> Benchmark contains ${bm.size} aligned return sessions. ${errors.join(" | ")}`,"err")}
  state.rows.sort((a,b)=>b.score-a.score);
  const top=state.rows.slice(0,Math.min(4,state.rows.length));
  for(let i=0;i<top.length;i++){setStatus(`Checking dividends for ${top[i].n}…`);top[i].dividend=await dividendData(top[i],key,top[i].price);setProgress(65+25*(i+1)/top.length)}
