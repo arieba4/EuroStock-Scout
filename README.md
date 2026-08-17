@@ -1,21 +1,22 @@
-# EuroStock Scout v2.5
+# EuroStock Scout v2.6
 
-## Fix in v2.5
-v2.4 successfully downloaded Marketstack EOD prices but could fail during beta alignment.
+## Reliability change
+v2.6 calculates beta against a real regional benchmark instead of the stocks being scanned.
 
-v2.5 calculates beta directly from daily returns:
-- each stock's daily return series is calculated by trading date;
-- the market benchmark is the equal-weight average return of the successfully downloaded stocks for each trading session;
-- each stock is aligned directly to that daily market-return series;
-- beta requires at least 30 aligned sessions;
-- the app shows how many aligned sessions the benchmark contains.
+- Europe: EXSA / iShares STOXX Europe 600 UCITS ETF (tries XETR then XFRA)
+- Canada: XIU / iShares S&P/TSX 60 Index ETF (XTSE)
 
-All v2.4 response parsing and fallback logic remains.
+For each stock, beta is calculated from aligned daily returns against the benchmark. The app records the number of aligned observations as `Beta n=`.
 
-## Features
-Europe / Canada, Marketstack EOD, €5,000 / C$5,000 portfolio, beta target near 1, RSI, SMA20, SMA50, momentum, ATR, Scout Grade, BUY ZONE / WAIT / AVOID, 3–4% target, entry/stop, dividends when available, Morningstar research links and 24-hour caching.
+If the benchmark cannot be downloaded, v2.6 stops and reports beta unavailable rather than fabricating values.
+
+## Also changed
+- Dividend history is attempted for up to 8 scanned stocks.
+- Keeps Europe / Canada, Scout Grade, RSI, SMA20/50, momentum, ATR, entry/target/stop, Morningstar research link and 24-hour caching.
 
 ## Install
-Replace the same six files in your existing GitHub repository and commit them. Confirm the heading says v2.5 before testing.
+Replace the same six files in your GitHub repository, commit, and confirm the heading says v2.6.
 
-This is a decision-support prototype, not individualized investment advice.
+Use Quick / 8 and ~1 year for the first test.
+
+This is decision support, not individualized investment advice.
