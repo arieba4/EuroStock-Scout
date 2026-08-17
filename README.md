@@ -1,35 +1,26 @@
-# EuroStock Scout v2.3
+# EuroStock Scout v2.4
 
-## Why v2.3 exists
-v2.2 used an exchange query parameter with the generic EOD endpoint. Marketstack documents an exchange-specific EOD route (`/exchanges/{MIC}/eod`). v2.3 now uses that route.
+## Fix in v2.4
+Marketstack can return EOD results either as an array or wrapped inside an object such as `data.eod`. v2.3 assumed `data` was always an array, which caused:
 
-## v2.3 data flow
-1. Uses the expected ticker and exchange MIC.
-2. Checks a persistent local ticker mapping.
-3. If no mapping exists, uses Marketstack's ticker search endpoint.
-4. Selects the result matching the expected exchange MIC.
-5. Saves that mapping locally.
-6. Downloads EOD history from `/exchanges/{MIC}/eod`.
-7. Calculates beta, RSI, moving averages, momentum, ATR, Scout Grade and entry/exit levels.
-8. Checks dividends for only the top candidates.
-9. Saves the completed market scan for 24 hours.
+`(d.data || []).filter is not a function`
 
-## Features
-- European and Canadian market buttons.
-- €5,000 / C$5,000 portfolio modes.
-- Beta target near 1.
-- 3–4% target.
-- BUY ZONE / WAIT / AVOID.
-- Scout Grade A+–F.
-- Dividend status and trailing yield when available.
-- Morningstar research links.
-- Persistent Marketstack ticker mappings.
-- 24-hour scan cache.
+v2.4 normalizes multiple response shapes before processing them. It also:
+- tries the exchange-specific EOD endpoint first;
+- falls back to the generic EOD endpoint using the resolved Marketstack symbol;
+- normalizes dividend response shapes the same way;
+- preserves ticker mappings and 24-hour scan caching;
+- keeps separate Europe and Canada modes;
+- keeps Scout Grade, dividends, Morningstar research links, beta, RSI, trend, entry, target and stop calculations.
 
-## Updating GitHub
-Replace the same six files in your existing repository with the six v2.3 files. Commit the changes. After GitHub Pages deploys, hard refresh or clear the old PWA/service-worker cache if v2.2 is still shown.
+## Install
+Replace the same six files in your existing GitHub repository, commit, and wait for GitHub Pages to redeploy.
 
-## Marketstack
-The Marketstack Free plan currently includes 100 requests/month, EOD data, one year of history, splits/dividends, ticker info, exchange info and HTTPS.
+If the browser still shows v2.3, hard refresh or clear the site's service-worker/cache data.
 
-This app is decision support, not individualized investment advice.
+Start with:
+1. Europe
+2. Quick / 8 stocks
+3. Test API connection
+
+This is a decision-support prototype, not individualized investment advice.
