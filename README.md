@@ -1,22 +1,21 @@
-# EuroStock Scout v2.6
+# EuroStock Scout v2.7
 
-## Reliability change
-v2.6 calculates beta against a real regional benchmark instead of the stocks being scanned.
+v2.7 adds transparent beta validation without loosening the trading rules.
 
-- Europe: EXSA / iShares STOXX Europe 600 UCITS ETF (tries XETR then XFRA)
-- Canada: XIU / iShares S&P/TSX 60 Index ETF (XTSE)
+For each stock it displays:
+- beta;
+- aligned observation count;
+- correlation to the regional benchmark;
+- annualized stock volatility;
+- annualized benchmark volatility;
+- stock/benchmark volatility ratio.
 
-For each stock, beta is calculated from aligned daily returns against the benchmark. The app records the number of aligned observations as `Beta n=`.
+For aligned daily returns, beta is approximately:
 
-If the benchmark cannot be downloaded, v2.6 stops and reports beta unavailable rather than fabricating values.
+`correlation × (stock volatility / benchmark volatility)`
 
-## Also changed
-- Dividend history is attempted for up to 8 scanned stocks.
-- Keeps Europe / Canada, Scout Grade, RSI, SMA20/50, momentum, ATR, entry/target/stop, Morningstar research link and 24-hour caching.
+This version also fixes the stale yellow banner that still mentioned v2.5.
 
-## Install
-Replace the same six files in your GitHub repository, commit, and confirm the heading says v2.6.
+Everything from v2.6 remains: Europe/Canada, real regional benchmarks, Scout Grade, RSI, SMA20/50, momentum, ATR, dividends, Morningstar research links, entry/target/stop and 24-hour caching.
 
-Use Quick / 8 and ~1 year for the first test.
-
-This is decision support, not individualized investment advice.
+Replace the same six files in GitHub, commit, and confirm the app heading says v2.7.

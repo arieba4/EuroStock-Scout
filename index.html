@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>EuroStock Scout v2.6</title>
+<title>EuroStock Scout v2.7</title>
 <style>
 :root{--bg:#07111f;--card:#0e1b2e;--card2:#091629;--line:#203550;--text:#f5f7fb;--muted:#94a6bd;--green:#42dda0;--amber:#f3c861;--red:#ff7782;--blue:#77aaff;--chip:#152741}
 *{box-sizing:border-box}html,body{margin:0;background:linear-gradient(180deg,#07111f,#091629 48%,#07111f);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
@@ -27,6 +27,12 @@ button{border:0;border-radius:13px;padding:12px;font-size:15px;font-weight:850;c
 .metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:10px 0}.metric{background:var(--card2);border-radius:10px;padding:8px 6px;text-align:center}.metric b{display:block;font-size:12px}.metric span{font-size:9px;color:var(--muted)}
 .why,.small{font-size:12.5px;line-height:1.5;color:#ced9e9}.trade{font-size:12.5px;line-height:1.55;background:var(--card2);border-left:3px solid var(--blue);border-radius:12px;padding:10px;margin-top:9px}
 .chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}.chip{font-size:10px;background:var(--chip);color:#c2d2e8;border-radius:999px;padding:4px 7px}
+.betaDiag{margin-top:9px;background:#0a1729;border:1px solid #28405f;border-radius:12px;padding:10px}
+.betaDiagTitle{font-size:11px;font-weight:850;color:#dce8f8;margin-bottom:7px}
+.betaGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.betaCell{background:#081426;border-radius:9px;padding:7px;text-align:center}
+.betaCell b{display:block;font-size:12px}.betaCell span{display:block;font-size:8.5px;color:var(--muted);margin-top:2px}
+@media(max-width:620px){.betaGrid{grid-template-columns:repeat(2,1fr)}.betaGrid .betaCell:last-child{grid-column:1/-1}}
 .ms{display:flex;align-items:center;justify-content:space-between;gap:9px;background:#0a1729;border:1px solid #273b57;border-radius:12px;padding:9px;margin-top:9px}.ms button{padding:8px 10px;background:#172a47;color:#eaf2fd;border:1px solid #2d496c;font-size:11px}
 .tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}.tab{background:#142743;color:#dce8f8}.tab.active{background:var(--blue);color:#061322}
 .warnbox{font-size:11px;line-height:1.5;color:#e0cd94;background:#241f12;border:1px solid #584820;border-radius:12px;padding:10px}
@@ -37,8 +43,8 @@ footer{font-size:10.5px;color:var(--muted);line-height:1.5;padding:7px 3px}
 <body>
 <main>
 <header>
-<h1>EuroStock Scout <span style="color:#77aaff">v2.6</span></h1>
-<div class="subtitle">Europe + Canada · Marketstack EOD · real regional benchmark beta · dividends · 3–4% trade target.</div>
+<h1>EuroStock Scout <span style="color:#77aaff">v2.7</span></h1>
+<div class="subtitle">Europe + Canada · Marketstack EOD · validated benchmark beta · volatility + correlation diagnostics · dividends · 3–4% trade target.</div>
 </header>
 
 <section class="card">
@@ -60,7 +66,7 @@ footer{font-size:10.5px;color:var(--muted);line-height:1.5;padding:7px 3px}
 <button class="secondary" onclick="saveKey()">Save key on this device</button>
 <button class="secondary" onclick="testConnection()">Test API connection</button>
 <button class="secondary" onclick="clearMappings()">Clear saved ticker mappings</button>
-<div class="warnbox" style="margin-top:9px">v2.5 calculates beta directly from aligned daily returns instead of a synthetic price index. If a ticker does not return data, the app searches Marketstack's ticker directory, verifies the expected exchange MIC, saves the resolved mapping locally, then retries.</div>
+<div class="warnbox" style="margin-top:9px">v2.7 validates beta against a real regional benchmark and shows stock volatility, benchmark volatility, correlation, volatility ratio and aligned observations. Ticker resolution and mappings are still cached locally.</div>
 </section>
 
 <section class="card">
@@ -93,6 +99,11 @@ footer{font-size:10.5px;color:var(--muted);line-height:1.5;padding:7px 3px}
 <div class="row"><div class="title" style="margin:0">Ranked candidates</div><div class="small">Best first</div></div>
 <div class="tabs"><button id="planTab" class="tab active" onclick="setView('plan')">Trade plan</button><button id="allTab" class="tab" onclick="setView('all')">All scanned</button></div>
 <div id="results" style="margin-top:8px"><div class="small">No scan yet.</div></div>
+</section>
+
+<section class="card">
+<div class="title">Understanding beta diagnostics</div>
+<div class="small"><b>Stock volatility</b> and <b>benchmark volatility</b> are annualized from the same aligned daily returns used for beta. <b>Correlation</b> ranges from −1 to +1. The <b>volatility ratio</b> is stock volatility divided by benchmark volatility. For the same observations, beta is approximately <b>correlation × volatility ratio</b>. This makes unusually high or negative beta values easier to audit.</div>
 </section>
 
 <section class="card">
@@ -138,6 +149,18 @@ function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
 function mean(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
 function variance(a){if(a.length<2)return 0;const m=mean(a);return a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1)}
 function covariance(a,b){const n=Math.min(a.length,b.length);if(n<2)return 0;a=a.slice(-n);b=b.slice(-n);const ma=mean(a),mb=mean(b);return a.reduce((s,x,i)=>s+(x-ma)*(b[i]-mb),0)/(n-1)}
+function stdev(a){return Math.sqrt(Math.max(0,variance(a)))}
+function correlation(a,b){
+ const n=Math.min(a.length,b.length);if(n<2)return null;
+ a=a.slice(-n);b=b.slice(-n);
+ const sa=stdev(a),sb=stdev(b);
+ if(!sa||!sb)return null;
+ return covariance(a,b)/(sa*sb);
+}
+function annualizedVolatility(dailyReturns){
+ if(!dailyReturns?.length)return null;
+ return stdev(dailyReturns)*Math.sqrt(252)*100;
+}
 function sma(a,n){return a.length>=n?mean(a.slice(-n)):null}
 function roc(a,n){return a.length>n?(a.at(-1)/a[a.length-1-n]-1)*100:null}
 function rsi(c,n=14){if(c.length<=n)return null;let g=0,l=0;for(let i=c.length-n;i<c.length;i++){const d=c[i]-c[i-1];d>=0?g+=d:l-=d}if(!l)return 100;const rs=(g/n)/(l/n);return 100-100/(1+rs)}
@@ -150,9 +173,9 @@ function setStatus(x,c=""){const e=document.getElementById("status");e.className
 function setProgress(x){document.getElementById("bar").style.width=clamp(x,0,100)+"%"}
 function chooseMarket(m){market=m;document.getElementById("euBtn").classList.toggle("active",m==="Europe");document.getElementById("caBtn").classList.toggle("active",m==="Canada");document.getElementById("budgetLabel").textContent=m==="Canada"?"Budget (C$)":"Budget (€)";document.getElementById("marketHint").textContent=`${m} selected · portfolio currency ${currency()}.`;state={rows:[],plan:[],view:"plan",timestamp:null,benchmark:"",source:""};render()}
 function saveKey(){const k=document.getElementById("apiKey").value.trim();if(k){localStorage.setItem("euroScoutMSKey",k);setStatus("Marketstack key saved locally on this device.","ok")}else{localStorage.removeItem("euroScoutMSKey");setStatus("Saved key removed.","ok")}}
-function clearMappings(){Object.keys(localStorage).filter(k=>k.startsWith("ESS26MAP|")).forEach(k=>localStorage.removeItem(k));setStatus("Saved ticker mappings cleared.","ok")}
+function clearMappings(){Object.keys(localStorage).filter(k=>k.startsWith("ESS27MAP|")).forEach(k=>localStorage.removeItem(k));setStatus("Saved ticker mappings cleared.","ok")}
 function opt(){return{budget:+document.getElementById("budget").value||5000,target:+document.getElementById("target").value,pref:+document.getElementById("preferredBeta").value,tol:+document.getElementById("betaTolerance").value,max:+document.getElementById("maxPositions").value,risk:document.getElementById("riskStyle").value,days:+document.getElementById("history").value}}
-function cacheKey(){return `ESS26SCAN|${market}|${document.getElementById("scanSize").value}|${document.getElementById("history").value}`}
+function cacheKey(){return `ESS27SCAN|${market}|${document.getElementById("scanSize").value}|${document.getElementById("history").value}`}
 function getCache(){try{const v=JSON.parse(localStorage.getItem(cacheKey())||"null");if(v&&Date.now()-v.saved<24*3600*1000)return v}catch{}return null}
 function putCache(x){try{localStorage.setItem(cacheKey(),JSON.stringify({saved:Date.now(),payload:x}))}catch{}}
 async function apiJSON(url){const r=await fetch(url);let d={};try{d=await r.json()}catch{}if(!r.ok||d.error)throw new Error(d?.error?.message||d?.message||`HTTP ${r.status}`);return d}
@@ -172,7 +195,7 @@ function asArrayPayload(d){
   if(Array.isArray(d.values)) return d.values;
   return [];
 }
-function mapKey(i){return `ESS26MAP|${i.n}|${i.m}`}
+function mapKey(i){return `ESS27MAP|${i.n}|${i.m}`}
 function getSavedMap(i){try{return JSON.parse(localStorage.getItem(mapKey(i))||"null")}catch{return null}}
 function saveMap(i,x){try{localStorage.setItem(mapKey(i),JSON.stringify(x))}catch{}}
 
@@ -245,10 +268,12 @@ function stockReturnMap(rows){
 function betaAgainstBenchmark(stockRows,benchmarkRows){
  const sr=stockReturnMap(stockRows),br=stockReturnMap(benchmarkRows);
  const dates=[...sr.keys()].filter(d=>br.has(d)).sort();
- if(dates.length<30) return {beta:null,observations:dates.length};
+ if(dates.length<30)return{beta:null,observations:dates.length,correlation:null,stockVol:null,benchmarkVol:null,volRatio:null};
  const a=dates.map(d=>sr.get(d)),b=dates.map(d=>br.get(d));
- const v=variance(b);
- return {beta:v?covariance(a,b)/v:null,observations:dates.length};
+ const v=variance(b),corr=correlation(a,b);
+ const stockVol=annualizedVolatility(a),benchmarkVol=annualizedVolatility(b);
+ const volRatio=(stockVol!==null&&benchmarkVol)?stockVol/benchmarkVol:null;
+ return{beta:v?covariance(a,b)/v:null,observations:dates.length,correlation:corr,stockVol,benchmarkVol,volRatio};
 }
 async function downloadBenchmark(key,days){
  const candidates=benchmarkCandidates[market]||[];
@@ -266,7 +291,7 @@ function analyze(i,rows,benchmarkRows,op){
  const c=rows.map(x=>+(x.adj_close??x.close)).filter(Number.isFinite);
  if(c.length<60)throw new Error("Not enough history");
  const price=c.at(-1),s20=sma(c,20),s50=sma(c,50),R=rsi(c),mom=roc(c,20),A=atr(rows),ap=A/price*100;
- const bc=betaAgainstBenchmark(rows,benchmarkRows),B=bc.beta,obs=bc.observations;
+ const bc=betaAgainstBenchmark(rows,benchmarkRows),B=bc.beta,obs=bc.observations,corr=bc.correlation,stockVol=bc.stockVol,benchmarkVol=bc.benchmarkVol,volRatio=bc.volRatio;
  if(B===null||!Number.isFinite(B))throw new Error(`Benchmark beta unavailable (${obs} aligned sessions)`);
  const dist=Math.abs(B-op.pref),bs=100*clamp(1-dist/(op.tol*1.8),0,1);
  let ts=50;ts+=price>s20?20:-15;ts+=s20>s50?20:-15;if(price>s50)ts+=10;ts=clamp(ts,0,100);
@@ -278,7 +303,7 @@ function analyze(i,rows,benchmarkRows,op){
  else if(score>=55&&dist<=op.tol*1.25)signal="WAIT";
  const low=price-Math.min(A*.35,price*.012),high=price*1.002,entry=(low+high)/2;
  const sm=op.risk==="tight"?1.05:op.risk==="wide"?1.75:1.35,stop=Math.max(entry-A*sm,entry*.94),target=entry*(1+op.target);
- return {...i,price,beta:B,betaObs:obs,rsi:R,momentum:mom,atr:A,atrPct:ap,sma20:s20,sma50:s50,score,scoutGrade:grade(score),signal,entryLow:low,entryHigh:high,entry,stop,target,rr:(target-entry)/(entry-stop),currency:currency(),dividend:{status:"Unavailable",yield:null,total:null},reasons:[dist<=op.tol?`beta ${B.toFixed(2)} is inside your band`:`beta ${B.toFixed(2)} is outside your band`,`${obs} aligned benchmark sessions`,price>s20&&s20>s50?"trend is aligned bullish":price>s50?"trend is mixed":"trend is weak",R>68?`RSI ${R.toFixed(0)} is stretched`:R<42?`RSI ${R.toFixed(0)} is weak`:`RSI ${R.toFixed(0)} is constructive`,`${mom>=0?"+":""}${mom.toFixed(1)}% 20-day momentum`]};
+ return {...i,price,beta:B,betaObs:obs,betaCorrelation:corr,stockVol,benchmarkVol,volRatio,rsi:R,momentum:mom,atr:A,atrPct:ap,sma20:s20,sma50:s50,score,scoutGrade:grade(score),signal,entryLow:low,entryHigh:high,entry,stop,target,rr:(target-entry)/(entry-stop),currency:currency(),dividend:{status:"Unavailable",yield:null,total:null},reasons:[dist<=op.tol?`beta ${B.toFixed(2)} is inside your band`:`beta ${B.toFixed(2)} is outside your band`,`${obs} aligned benchmark sessions`,corr===null?"correlation unavailable":`correlation ${corr.toFixed(2)}`,stockVol===null||benchmarkVol===null?"volatility unavailable":`annualized volatility ${stockVol.toFixed(1)}% vs benchmark ${benchmarkVol.toFixed(1)}%`,price>s20&&s20>s50?"trend is aligned bullish":price>s50?"trend is mixed":"trend is weak",R>68?`RSI ${R.toFixed(0)} is stretched`:R<42?`RSI ${R.toFixed(0)} is weak`:`RSI ${R.toFixed(0)} is constructive`,`${mom>=0?"+":""}${mom.toFixed(1)}% 20-day momentum`]};
 }
 function buildPlan(rows,op){const e=rows.filter(x=>x.signal==="BUY ZONE").sort((a,b)=>b.score-a.score).slice(0,op.max);if(!e.length)return[];const w=e.map(x=>Math.max(15,x.score)),sum=w.reduce((a,b)=>a+b,0);return e.map((x,i)=>{const a=op.budget*w[i]/sum,shares=Math.floor(a/x.entry),used=shares*x.entry;return shares?{...x,shares,used,grossTarget:used*op.target,maxModelLoss:shares*(x.entry-x.stop)}:null}).filter(Boolean)}
 async function testConnection(){const key=document.getElementById("apiKey").value.trim();if(!key)return setStatus("Enter your Marketstack API key first.","err");const t=market==="Canada"?canada[0]:europe[0];setStatus(`Resolving ${t.n} on ${t.m}…`);try{const r=await eodFor(t,key,45);if(!r.rows.length)throw new Error(`Ticker resolved, but Marketstack returned no historical EOD rows for ${r.item.rs} on ${r.item.rm}. The app tried both exchange-specific and generic EOD routes.`);setStatus(`Connection works. ${r.item.rs} on ${r.item.rm}: ${r.rows.length} EOD rows returned.`,"ok")}catch(e){setStatus(`<b>API test failed:</b> ${e.message}`,"err")}}
@@ -303,8 +328,16 @@ async function scan(force){
 function msURL(x){return "https://www.google.com/search?q="+encodeURIComponent(`site:morningstar.com ${x.n} ${x.s} Morningstar stock rating`)}
 function setView(v){state.view=v;document.getElementById("planTab").classList.toggle("active",v==="plan");document.getElementById("allTab").classList.toggle("active",v==="all");renderRows()}
 function render(){const op=opt(),pl=state.plan||[],a=pl.reduce((s,x)=>s+x.used,0),wb=a?pl.reduce((s,x)=>s+x.used*x.beta,0)/a:null;document.getElementById("allocated").textContent=money(a);document.getElementById("targetProfit").textContent=money(a*op.target);document.getElementById("portfolioBeta").textContent=wb?wb.toFixed(2):"—";document.getElementById("qualifying").textContent=(state.rows||[]).filter(x=>x.signal==="BUY ZONE").length;const ag=(state.rows||[]).length?mean(state.rows.map(x=>gradeNumber(x.scoutGrade))):null;document.getElementById("avgGrade").textContent=ag===null?"—":ag>=3.6?"A":ag>=2.6?"B":ag>=1.6?"C":"D";document.getElementById("lastRefresh").textContent=state.timestamp?new Date(state.timestamp).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"—";document.getElementById("benchmarkInfo").innerHTML=state.benchmark?`<b>Beta benchmark:</b> ${state.benchmark}`:"Benchmark not calculated yet.";renderRows()}
-function renderRows(){const rows=state.view==="plan"?(state.plan||[]):(state.rows||[]);if(!rows.length){document.getElementById("results").innerHTML=state.view==="plan"&&state.rows?.length?'<div class="warnbox">No stock currently passes all BUY ZONE rules. Cash stays unallocated rather than forcing a trade.</div>':'<div class="small">No scan yet.</div>';return}document.getElementById("results").innerHTML=rows.map(x=>{const cls=x.signal==="BUY ZONE"?"buy":x.signal==="WAIT"?"wait":"avoid",div=x.dividend?.yield==null?"N/A":x.dividend.yield.toFixed(2)+"%",divFlag=x.dividend?.yield==null?"N/A":x.dividend.yield>0?"YES":"NO",pos=x.shares?`<div class="trade"><b>Position:</b> ${x.shares} shares · ${money(x.used,x.currency)}<br><b>Entry:</b> ${money(x.entryLow,x.currency)}–${money(x.entryHigh,x.currency)} · <b>Target:</b> ${money(x.target,x.currency)} · <b>Stop:</b> ${money(x.stop,x.currency)}<br><b>Gross target:</b> ${money(x.grossTarget,x.currency)} · <b>modeled stop loss:</b> ${money(x.maxModelLoss,x.currency)}</div>`:`<div class="trade"><b>Modeled entry:</b> ${money(x.entryLow,x.currency)}–${money(x.entryHigh,x.currency)} · <b>Target:</b> ${money(x.target,x.currency)} · <b>Stop:</b> ${money(x.stop,x.currency)}</div>`;return `<div class="candidate"><div class="row"><div><div class="name">${x.n}</div><div class="ticker">${x.rs||x.s} · ${x.rm||x.m} · ${market}</div></div><span class="badge ${cls}">${x.signal}</span></div><div class="metrics"><div class="metric"><b>${money(x.price,x.currency)}</b><span>EOD PRICE</span></div><div class="metric"><b>${x.beta.toFixed(2)}</b><span>BETA</span></div><div class="metric"><b>${x.rsi.toFixed(0)}</b><span>RSI</span></div><div class="metric"><b>${x.scoutGrade}</b><span>SCOUT GRADE</span></div><div class="metric"><b>${divFlag}</b><span>DIVIDEND</span></div><div class="metric"><b>${div}</b><span>TRAILING YIELD</span></div></div><div class="why"><b>Why:</b> ${x.reasons.join("; ")}${x.dividend?.yield>0?`; trailing dividend yield ${x.dividend.yield.toFixed(2)}%`:""}.</div><div class="chips"><span class="chip">Score ${x.score.toFixed(0)}/100</span><span class="chip">Beta n=${x.betaObs||"—"}</span><span class="chip">20D mom. ${x.momentum.toFixed(1)}%</span><span class="chip">ATR ${x.atrPct.toFixed(1)}%</span></div>${pos}<div class="ms"><div class="small"><b>Morningstar:</b> official rating not reproduced.</div><button onclick="window.open('${msURL(x)}','_blank')">Open Morningstar research</button></div></div>`}).join("")}
-function loadDemo(){const op=opt();const base=market==="Canada"?[{n:"Royal Bank of Canada",s:"RY",m:"XTSE",price:210,beta:.96,rsi:58,momentum:2.4,score:82,dy:3.2},{n:"Canadian Natural Resources",s:"CNQ",m:"XTSE",price:47,beta:1.10,rsi:61,momentum:3.1,score:78,dy:4.5},{n:"Enbridge",s:"ENB",m:"XTSE",price:67,beta:.84,rsi:55,momentum:1.5,score:74,dy:5.6}]:[{n:"Airbus",s:"AIR",m:"XPAR",price:215,beta:.93,rsi:57,momentum:3.2,score:82,dy:1.2},{n:"Siemens",s:"SIE",m:"XETR",price:284,beta:1.12,rsi:61,momentum:4.1,score:79,dy:1.8},{n:"Allianz",s:"ALV",m:"XETR",price:443,beta:.78,rsi:65,momentum:2.0,score:72,dy:3.1}];state.rows=base.map(x=>{let atrv=x.price*.02,low=x.price-atrv*.35,high=x.price*1.002,entry=(low+high)/2,stop=entry-atrv*1.35,target=entry*(1+op.target);return{...x,rs:x.s,rm:x.m,atr:atrv,atrPct:2,sma20:x.price*.98,sma50:x.price*.95,scoutGrade:grade(x.score),signal:x.score>=68?"BUY ZONE":"WAIT",entryLow:low,entryHigh:high,entry,stop,target,rr:(target-entry)/(entry-stop),currency:currency(),dividend:{status:"Pays dividend",yield:x.dy,total:null},reasons:[`beta ${x.beta.toFixed(2)} near target`,`RSI ${x.rsi} constructive`,`${x.momentum}% 20-day momentum`]}});state.plan=buildPlan(state.rows,op);state.timestamp=new Date();state.benchmark=`Demo ${market} benchmark`;state.source="demo";render();setProgress(100);setStatus("Demo loaded. Demo values are illustrative, not current market data.","warn")}
+function renderRows(){const rows=state.view==="plan"?(state.plan||[]):(state.rows||[]);if(!rows.length){document.getElementById("results").innerHTML=state.view==="plan"&&state.rows?.length?'<div class="warnbox">No stock currently passes all BUY ZONE rules. Cash stays unallocated rather than forcing a trade.</div>':'<div class="small">No scan yet.</div>';return}document.getElementById("results").innerHTML=rows.map(x=>{const cls=x.signal==="BUY ZONE"?"buy":x.signal==="WAIT"?"wait":"avoid",div=x.dividend?.yield==null?"N/A":x.dividend.yield.toFixed(2)+"%",divFlag=x.dividend?.yield==null?"N/A":x.dividend.yield>0?"YES":"NO",pos=x.shares?`<div class="trade"><b>Position:</b> ${x.shares} shares · ${money(x.used,x.currency)}<br><b>Entry:</b> ${money(x.entryLow,x.currency)}–${money(x.entryHigh,x.currency)} · <b>Target:</b> ${money(x.target,x.currency)} · <b>Stop:</b> ${money(x.stop,x.currency)}<br><b>Gross target:</b> ${money(x.grossTarget,x.currency)} · <b>modeled stop loss:</b> ${money(x.maxModelLoss,x.currency)}</div>`:`<div class="trade"><b>Modeled entry:</b> ${money(x.entryLow,x.currency)}–${money(x.entryHigh,x.currency)} · <b>Target:</b> ${money(x.target,x.currency)} · <b>Stop:</b> ${money(x.stop,x.currency)}</div>`;return `<div class="candidate"><div class="row"><div><div class="name">${x.n}</div><div class="ticker">${x.rs||x.s} · ${x.rm||x.m} · ${market}</div></div><span class="badge ${cls}">${x.signal}</span></div><div class="metrics"><div class="metric"><b>${money(x.price,x.currency)}</b><span>EOD PRICE</span></div><div class="metric"><b>${x.beta.toFixed(2)}</b><span>BETA</span></div><div class="metric"><b>${x.rsi.toFixed(0)}</b><span>RSI</span></div><div class="metric"><b>${x.scoutGrade}</b><span>SCOUT GRADE</span></div><div class="metric"><b>${divFlag}</b><span>DIVIDEND</span></div><div class="metric"><b>${div}</b><span>TRAILING YIELD</span></div></div><div class="why"><b>Why:</b> ${x.reasons.join("; ")}${x.dividend?.yield>0?`; trailing dividend yield ${x.dividend.yield.toFixed(2)}%`:""}.</div><div class="chips"><span class="chip">Score ${x.score.toFixed(0)}/100</span><span class="chip">Beta n=${x.betaObs||"—"}</span><span class="chip">20D mom. ${x.momentum.toFixed(1)}%</span><span class="chip">ATR ${x.atrPct.toFixed(1)}%</span></div>${pos}<div class="betaDiag">
+<div class="betaDiagTitle">Beta diagnostics · β ≈ correlation × volatility ratio</div>
+<div class="betaGrid">
+<div class="betaCell"><b>${x.beta.toFixed(2)}</b><span>BETA</span></div>
+<div class="betaCell"><b>${x.betaCorrelation==null?"N/A":x.betaCorrelation.toFixed(2)}</b><span>CORRELATION</span></div>
+<div class="betaCell"><b>${x.stockVol==null?"N/A":x.stockVol.toFixed(1)+"%"}</b><span>STOCK VOL.</span></div>
+<div class="betaCell"><b>${x.benchmarkVol==null?"N/A":x.benchmarkVol.toFixed(1)+"%"}</b><span>BENCHMARK VOL.</span></div>
+<div class="betaCell"><b>${x.volRatio==null?"N/A":x.volRatio.toFixed(2)+"×"}</b><span>VOL. RATIO</span></div>
+</div></div><div class="ms"><div class="small"><b>Morningstar:</b> official rating not reproduced.</div><button onclick="window.open('${msURL(x)}','_blank')">Open Morningstar research</button></div></div>`}).join("")}
+function loadDemo(){const op=opt();const base=market==="Canada"?[{n:"Royal Bank of Canada",s:"RY",m:"XTSE",price:210,beta:.96,rsi:58,momentum:2.4,score:82,dy:3.2},{n:"Canadian Natural Resources",s:"CNQ",m:"XTSE",price:47,beta:1.10,rsi:61,momentum:3.1,score:78,dy:4.5},{n:"Enbridge",s:"ENB",m:"XTSE",price:67,beta:.84,rsi:55,momentum:1.5,score:74,dy:5.6}]:[{n:"Airbus",s:"AIR",m:"XPAR",price:215,beta:.93,rsi:57,momentum:3.2,score:82,dy:1.2},{n:"Siemens",s:"SIE",m:"XETR",price:284,beta:1.12,rsi:61,momentum:4.1,score:79,dy:1.8},{n:"Allianz",s:"ALV",m:"XETR",price:443,beta:.78,rsi:65,momentum:2.0,score:72,dy:3.1}];state.rows=base.map(x=>{let atrv=x.price*.02,low=x.price-atrv*.35,high=x.price*1.002,entry=(low+high)/2,stop=entry-atrv*1.35,target=entry*(1+op.target);return{...x,rs:x.s,rm:x.m,atr:atrv,atrPct:2,sma20:x.price*.98,sma50:x.price*.95,scoutGrade:grade(x.score),signal:x.score>=68?"BUY ZONE":"WAIT",entryLow:low,entryHigh:high,entry,stop,target,rr:(target-entry)/(entry-stop),currency:currency(),betaObs:240,betaCorrelation:0.65,stockVol:22,benchmarkVol:16,volRatio:1.38,dividend:{status:"Pays dividend",yield:x.dy,total:null},reasons:[`beta ${x.beta.toFixed(2)} near target`,`RSI ${x.rsi} constructive`,`${x.momentum}% 20-day momentum`]}});state.plan=buildPlan(state.rows,op);state.timestamp=new Date();state.benchmark=`Demo ${market} benchmark`;state.source="demo";render();setProgress(100);setStatus("Demo loaded. Demo values are illustrative, not current market data.","warn")}
 window.addEventListener("load",()=>{const k=localStorage.getItem("euroScoutMSKey");if(k)document.getElementById("apiKey").value=k;if("serviceWorker"in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{});render()})
 </script>
 </body>
