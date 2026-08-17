@@ -1,0 +1,9 @@
+{
+  "name": "EuroStock Scout v2",
+  "short_name": "EuroStock",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#07111f",
+  "theme_color": "#07111f",
+  "description": "European stock screener with beta, technical signals, and \u20ac5,000 portfolio planning."
+}
