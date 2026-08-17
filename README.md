@@ -1,38 +1,35 @@
-# EuroStock Scout v2.2
+# EuroStock Scout v2.3
 
-## Main change
-v2.2 replaces Twelve Data with **Marketstack** for end-of-day historical stock prices.
+## Why v2.3 exists
+v2.2 used an exchange query parameter with the generic EOD endpoint. Marketstack documents an exchange-specific EOD route (`/exchanges/{MIC}/eod`). v2.3 now uses that route.
 
-Marketstack currently offers a free plan with 100 market-data requests per month and up to 12 months of historical EOD data. The app batches tickers by exchange and stores successful scans in browser local storage for 24 hours to preserve quota.
+## v2.3 data flow
+1. Uses the expected ticker and exchange MIC.
+2. Checks a persistent local ticker mapping.
+3. If no mapping exists, uses Marketstack's ticker search endpoint.
+4. Selects the result matching the expected exchange MIC.
+5. Saves that mapping locally.
+6. Downloads EOD history from `/exchanges/{MIC}/eod`.
+7. Calculates beta, RSI, moving averages, momentum, ATR, Scout Grade and entry/exit levels.
+8. Checks dividends for only the top candidates.
+9. Saves the completed market scan for 24 hours.
 
 ## Features
-- Separate Europe and Canada market buttons.
-- European and TSX stock universes.
-- Historical beta from the selected regional scan basket.
-- RSI(14), SMA20, SMA50, 20-day momentum and ATR(14).
-- Scout Grade A+ to F.
+- European and Canadian market buttons.
+- €5,000 / C$5,000 portfolio modes.
+- Beta target near 1.
+- 3–4% target.
 - BUY ZONE / WAIT / AVOID.
-- €5,000 or C$5,000 portfolio allocation.
-- 3%, 3.5%, or 4% gross target.
-- ATR-based stop.
-- Dividend history attempted for only the top four ranked stocks to preserve API quota.
-- Morningstar research links; no fabricated Morningstar star rating.
+- Scout Grade A+–F.
+- Dividend status and trailing yield when available.
+- Morningstar research links.
+- Persistent Marketstack ticker mappings.
 - 24-hour scan cache.
-- PWA / Add to Home Screen support.
 
-## Setup
-1. Create a Marketstack account and obtain an API key.
-2. Replace the six files in your existing GitHub repository with the six files from this package.
-3. Wait for GitHub Pages to redeploy.
-4. Open the app, paste the Marketstack API key and save it locally.
-5. Start with Quick / 8 stocks.
-6. Tap Test API connection, then Scan selected market.
+## Updating GitHub
+Replace the same six files in your existing repository with the six v2.3 files. Commit the changes. After GitHub Pages deploys, hard refresh or clear the old PWA/service-worker cache if v2.2 is still shown.
 
-## Important
-Marketstack's free plan is end-of-day, not true intraday live pricing. Dividend access can depend on the provider plan. If the dividend endpoint is unavailable, the main scan continues and shows N/A for dividend yield.
+## Marketstack
+The Marketstack Free plan currently includes 100 requests/month, EOD data, one year of history, splits/dividends, ticker info, exchange info and HTTPS.
 
-Marketstack counts each ticker requested toward monthly quota even if multiple tickers are sent in one HTTP request. With Quick / 8 stocks, a price scan consumes approximately 8 symbol requests, plus optional dividend queries. The 24-hour cache avoids repeating those calls.
-
-Morningstar star ratings are proprietary licensed research and are not reproduced by this app.
-
-This is decision support, not individualized investment advice.
+This app is decision support, not individualized investment advice.
