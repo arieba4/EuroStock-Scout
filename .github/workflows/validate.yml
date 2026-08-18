@@ -1,0 +1,42 @@
+name: Validate application
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile Python pipeline
+        run: python -m py_compile scripts/update_data.py scripts/universe.py
+      - name: Run pipeline unit tests
+        run: |
+          pip install -r requirements.txt
+          python -m unittest discover -s tests
+      - name: Validate embedded JavaScript
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          html = Path("index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script>(.*?)</script>", html, re.S)
+          if not scripts:
+              raise SystemExit("No inline script found")
+          Path("/tmp/eurostock.js").write_text("\n".join(scripts), encoding="utf-8")
+          PY
+          node --check /tmp/eurostock.js
+      - name: Check required v3.4 fields
+        run: |
+          grep -q 'relativeStrength20' scripts/update_data.py
+          grep -q 'distanceToResistancePct' scripts/update_data.py
+          grep -q 'eventRisk' scripts/update_data.py
+          grep -q 'market_regime' scripts/update_data.py
