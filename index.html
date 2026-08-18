@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>EuroStock Scout v3.0</title>
+<title>EuroStock Scout v3.1</title>
 <style>
 :root{--bg:#07111f;--card:#0e1b2e;--card2:#091629;--line:#203550;--text:#f5f7fb;--muted:#94a6bd;--green:#42dda0;--amber:#f3c861;--red:#ff7782;--blue:#77aaff;--chip:#152741}
 *{box-sizing:border-box}html,body{margin:0;background:linear-gradient(180deg,#07111f,#091629 48%,#07111f);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
@@ -19,7 +19,7 @@ label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}input,se
 button.primary,button.secondary{width:100%;border-radius:13px;padding:12px;font-weight:850;font-size:15px;margin-top:9px}.primary{border:0;background:var(--blue);color:#061322}.secondary{background:#172a47;color:#e5eefb;border:1px solid #294462}
 .status{font-size:12px;padding:10px;border-radius:12px;background:var(--card2);border:1px solid var(--line);margin-top:9px;line-height:1.5}.ok{border-color:#2b6552}.warn{border-color:#705a28}.err{border-color:#773844}
 .kpi{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:10px}.kpi b{display:block;font-size:18px}.kpi span{font-size:10px;color:var(--muted)}
-.tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:10px 0}.candidate{padding:15px 0;border-top:1px solid var(--line)}.candidate:first-child{border-top:0}
+.tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin:10px 0}.candidate{padding:15px 0;border-top:1px solid var(--line)}.candidate:first-child{border-top:0}
 .row{display:flex;justify-content:space-between;gap:10px}.name{font-size:17px;font-weight:850}.ticker{font-size:11px;color:var(--muted);margin-top:2px}
 .badge{font-size:10px;font-weight:900;border-radius:999px;padding:5px 8px;height:max-content}.buy{background:rgba(66,221,160,.14);color:var(--green)}.wait{background:rgba(243,200,97,.14);color:var(--amber)}.avoid{background:rgba(255,119,130,.14);color:var(--red)}
 .metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:10px 0}.metric,.betaCell{background:var(--card2);border-radius:10px;padding:8px 6px;text-align:center}.metric b,.betaCell b{display:block;font-size:12px}.metric span,.betaCell span{font-size:9px;color:var(--muted)}
@@ -27,14 +27,17 @@ button.primary,button.secondary{width:100%;border-radius:13px;padding:12px;font-
 .trade{font-size:12.5px;line-height:1.55;background:var(--card2);border-left:3px solid var(--blue);border-radius:12px;padding:10px;margin-top:9px}
 .betaDiag{margin-top:9px;background:#0a1729;border:1px solid #28405f;border-radius:12px;padding:10px}.betaTitle{font-size:11px;font-weight:850;margin-bottom:7px}.betaGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
 .ms{display:flex;align-items:center;justify-content:space-between;gap:9px;background:#0a1729;border:1px solid #273b57;border-radius:12px;padding:9px;margin-top:9px}.ms button{padding:8px 10px;background:#172a47;color:#eaf2fd;border:1px solid #2d496c;border-radius:10px}
+.rank{font-size:22px;font-weight:900;color:var(--blue);min-width:38px}
+.suggestNote{font-size:11px;color:#e0cd94;background:#241f12;border:1px solid #584820;border-radius:12px;padding:10px;margin-bottom:10px;line-height:1.5}
+
 footer{font-size:10.5px;color:var(--muted);line-height:1.5;padding:7px 3px}
-@media(max-width:620px){.metrics{grid-template-columns:repeat(3,1fr)}.betaGrid{grid-template-columns:repeat(2,1fr)}.betaGrid .betaCell:last-child{grid-column:1/-1}.grid3{grid-template-columns:1fr 1fr}.grid3 .kpi:last-child{grid-column:1/-1}}
+@media(max-width:620px){.tabs{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(3,1fr)}.betaGrid{grid-template-columns:repeat(2,1fr)}.betaGrid .betaCell:last-child{grid-column:1/-1}.grid3{grid-template-columns:1fr 1fr}.grid3 .kpi:last-child{grid-column:1/-1}}
 </style>
 </head>
 <body>
 <main>
-<header><h1>EuroStock Scout <span style="color:#77aaff">v3.0</span></h1>
-<div class="sub">Daily GitHub-powered European + Canadian stock screener · no browser market-data API quota.</div></header>
+<header><h1>EuroStock Scout <span style="color:#77aaff">v3.1</span></h1>
+<div class="sub">Daily GitHub-powered screener · 60 European + 50 Canadian large caps · Top-5 near-term suggestions · no browser market-data API quota.</div></header>
 
 <section class="card">
 <div class="title">1. Choose market</div>
@@ -75,18 +78,27 @@ footer{font-size:10.5px;color:var(--muted);line-height:1.5;padding:7px 3px}
 
 <section class="card">
 <div class="title">Ranked candidates</div>
-<div class="tabs"><button id="planTab" class="tab active" onclick="setView('plan')">Trade plan</button><button id="allTab" class="tab" onclick="setView('all')">All scanned</button></div>
+<div class="tabs">
+<button id="planTab" class="tab active" onclick="setView('plan')">Trade plan</button>
+<button id="suggestTab" class="tab" onclick="setView('suggest')">Suggestions · Top 5</button>
+<button id="allTab" class="tab" onclick="setView('all')">All scanned</button>
+</div>
 <div id="results"><div class="small">Waiting for data.</div></div>
 </section>
 
 <section class="card">
-<div class="title">How v3.0 gets market data</div>
+<div class="title">How “Suggestions · Top 5” works</div>
+<div class="small">The Top 5 is a <b>near-term technical ranking</b>, not a promise or forecast. It rewards a clean bullish trend, constructive-but-not-overbought RSI, positive momentum, beta near your selected target and manageable volatility. A stock may still be labelled <b>WAIT</b> if the setup is attractive but the entry looks stretched.</div>
+</section>
+
+<section class="card">
+<div class="title">How v3.1 gets market data</div>
 <div class="small">A GitHub Actions job runs on weekdays and can also be started manually. It uses the open-source <b>yfinance</b> Python library on GitHub's server to fetch historical prices and dividends, calculates beta/volatility diagnostics, then commits only the resulting JSON data to this repository. Your phone and laptop no longer make dozens of market-data API calls. The data is intended for personal/research use and is end-of-day/delayed rather than a brokerage execution feed.</div>
 </section>
-<footer>Decision-support prototype only, not individualized investment advice. A 3–4% target is an objective, not a guaranteed return. Historical beta, volatility and technical indicators are backward-looking. Verify material news, earnings, taxes and execution prices before trading.</footer>
+<footer>Decision-support prototype only, not individualized investment advice. “Top 5” means strongest model signals, not guaranteed gains. A 3–4% target is an objective, not a guaranteed return. Verify material news, earnings, taxes and actual execution prices before trading.</footer>
 </main>
 <script>
-let market="Europe",raw=null,rows=[],plan=[],view="plan";
+let market="Europe",raw=null,rows=[],plan=[],suggestions=[],view="plan";
 
 function money(x,c){return new Intl.NumberFormat("en-CA",{style:"currency",currency:c||"EUR",maximumFractionDigits:2}).format(x||0)}
 function mean(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
@@ -109,6 +121,20 @@ function classify(x,o,s){
  if(s>=55&&d<=o.tol*1.25)return"WAIT";
  return"AVOID";
 }
+function nearTermScore(x,o,base){
+ let n=base;
+ if(x.price>x.sma20&&x.sma20>x.sma50)n+=8;
+ else if(x.price>x.sma20)n+=3;
+ if(x.rsi>=48&&x.rsi<=63)n+=7;
+ else if(x.rsi>68)n-=8;
+ if(x.momentum20>0)n+=Math.min(8,x.momentum20*.7);
+ else n+=Math.max(-8,x.momentum20);
+ const betaDistance=Math.abs(x.beta-o.pref);
+ n+=Math.max(-8,6-betaDistance*16);
+ if(x.atrPct>4)n-=6;
+ if(x.correlation<0)n-=4;
+ return clamp(n,0,100);
+}
 async function refreshData(){
  const st=document.getElementById("dataStatus");st.className="status";st.textContent="Loading market-data.json…";
  try{
@@ -119,23 +145,24 @@ async function refreshData(){
   build();
  }catch(e){
   st.className="status warn";st.innerHTML=`No generated dataset is available yet. After installing v3.0, run the <b>Update market data</b> workflow once in GitHub Actions. (${e.message})`;
-  raw=null;rows=[];plan=[];render();
+  raw=null;rows=[];plan=[];suggestions=[];render();
  }
 }
 function build(){
  if(!raw?.markets?.[market]){rows=[];plan=[];render();return}
  const o=opts(),m=raw.markets[market];
  rows=(m.stocks||[]).filter(x=>x.status==="ok"&&Number.isFinite(x.beta)).map(x=>{
-   const s=score(x,o),sig=classify(x,o,s),entryLow=x.price-Math.min(x.atr*.35,x.price*.012),entryHigh=x.price*1.002,entry=(entryLow+entryHigh)/2;
+   const s=score(x,o),sig=classify(x,o,s),near=nearTermScore(x,o,s),entryLow=x.price-Math.min(x.atr*.35,x.price*.012),entryHigh=x.price*1.002,entry=(entryLow+entryHigh)/2;
    const sm=o.risk==="tight"?1.05:o.risk==="wide"?1.75:1.35,stop=Math.max(entry-x.atr*sm,entry*.94),target=entry*(1+o.target);
-   return {...x,score:s,scoutGrade:grade(s),signal:sig,entryLow,entryHigh,entry,stop,target,rr:(target-entry)/(entry-stop)};
+   return {...x,score:s,nearTermScore:near,scoutGrade:grade(s),signal:sig,entryLow,entryHigh,entry,stop,target,rr:(target-entry)/(entry-stop)};
  }).sort((a,b)=>b.score-a.score);
+ suggestions=[...rows].sort((a,b)=>b.nearTermScore-a.nearTermScore).slice(0,5);
  let elig=rows.filter(x=>x.signal==="BUY ZONE").slice(0,o.max);
  const w=elig.map(x=>Math.max(15,x.score)),sum=w.reduce((a,b)=>a+b,0);
  plan=elig.map((x,i)=>{const allocation=o.budget*w[i]/sum,shares=Math.floor(allocation/x.entry),used=shares*x.entry;return shares?{...x,shares,used,grossTarget:used*o.target,maxLoss:shares*(x.entry-x.stop)}:null}).filter(Boolean);
  render();
 }
-function setView(v){view=v;document.getElementById("planTab").classList.toggle("active",v==="plan");document.getElementById("allTab").classList.toggle("active",v==="all");renderRows()}
+function setView(v){view=v;document.getElementById("planTab").classList.toggle("active",v==="plan");document.getElementById("suggestTab").classList.toggle("active",v==="suggest");document.getElementById("allTab").classList.toggle("active",v==="all");renderRows()}
 function render(){
  const o=opts(),used=plan.reduce((s,x)=>s+x.used,0),pb=used?plan.reduce((s,x)=>s+x.used*x.beta,0)/used:null;
  document.getElementById("allocated").textContent=money(used,cur());document.getElementById("profit").textContent=money(used*o.target,cur());document.getElementById("portBeta").textContent=pb?pb.toFixed(2):"—";
@@ -146,19 +173,26 @@ function render(){
  renderRows();
 }
 function msURL(x){return "https://www.google.com/search?q="+encodeURIComponent(`site:morningstar.com ${x.name} ${x.ticker} Morningstar stock rating`)}
+function renderCard(x,rank=null){
+ const cls=x.signal==="BUY ZONE"?"buy":x.signal==="WAIT"?"wait":"avoid",div=x.dividendYield==null?"N/A":x.dividendYield.toFixed(2)+"%";
+ const pos=x.shares?`<div class="trade"><b>Position:</b> ${x.shares} shares · ${money(x.used,x.currency)}<br><b>Entry:</b> ${money(x.entryLow,x.currency)}–${money(x.entryHigh,x.currency)} · <b>Target:</b> ${money(x.target,x.currency)} · <b>Stop:</b> ${money(x.stop,x.currency)}<br><b>Gross target:</b> ${money(x.grossTarget,x.currency)} · <b>Modeled stop loss:</b> ${money(x.maxLoss,x.currency)}</div>`:`<div class="trade"><b>Modeled entry:</b> ${money(x.entryLow,x.currency)}–${money(x.entryHigh,x.currency)} · <b>Target:</b> ${money(x.target,x.currency)} · <b>Stop:</b> ${money(x.stop,x.currency)}</div>`;
+ return `<div class="candidate"><div class="row"><div style="display:flex;gap:8px">${rank?`<div class="rank">#${rank}</div>`:""}<div><div class="name">${x.name}</div><div class="ticker">${x.ticker} · ${market}</div></div></div><span class="badge ${cls}">${x.signal}</span></div>
+ <div class="metrics"><div class="metric"><b>${money(x.price,x.currency)}</b><span>EOD PRICE</span></div><div class="metric"><b>${x.beta.toFixed(2)}</b><span>BETA</span></div><div class="metric"><b>${x.rsi.toFixed(0)}</b><span>RSI</span></div><div class="metric"><b>${x.scoutGrade}</b><span>SCOUT GRADE</span></div><div class="metric"><b>${x.dividendYield>0?"YES":"NO"}</b><span>DIVIDEND</span></div><div class="metric"><b>${div}</b><span>TRAILING YIELD</span></div></div>
+ <div class="why"><b>Why:</b> beta ${x.beta.toFixed(2)} (${x.betaObs} aligned sessions); correlation ${x.correlation.toFixed(2)}; annualized volatility ${x.stockVol.toFixed(1)}% vs benchmark ${x.benchmarkVol.toFixed(1)}%; RSI ${x.rsi.toFixed(0)}; ${x.momentum20>=0?"+":""}${x.momentum20.toFixed(1)}% 20-day momentum.</div>
+ <div class="chips"><span class="chip">Scout ${x.score.toFixed(0)}/100</span><span class="chip">Near-term ${x.nearTermScore.toFixed(0)}/100</span><span class="chip">Beta n=${x.betaObs}</span><span class="chip">ATR ${x.atrPct.toFixed(1)}%</span></div>${pos}
+ <div class="betaDiag"><div class="betaTitle">Beta diagnostics · β ≈ correlation × volatility ratio</div><div class="betaGrid"><div class="betaCell"><b>${x.beta.toFixed(2)}</b><span>BETA</span></div><div class="betaCell"><b>${x.correlation.toFixed(2)}</b><span>CORRELATION</span></div><div class="betaCell"><b>${x.stockVol.toFixed(1)}%</b><span>STOCK VOL.</span></div><div class="betaCell"><b>${x.benchmarkVol.toFixed(1)}%</b><span>BENCHMARK VOL.</span></div><div class="betaCell"><b>${x.volRatio.toFixed(2)}×</b><span>VOL. RATIO</span></div></div></div>
+ <div class="ms"><div class="small"><b>Morningstar:</b> official rating not reproduced.</div><button onclick="window.open('${msURL(x)}','_blank')">Open Morningstar research</button></div></div>`;
+}
 function renderRows(){
- const r=view==="plan"?plan:rows,box=document.getElementById("results");
+ const box=document.getElementById("results");
+ if(view==="suggest"){
+   if(!suggestions.length){box.innerHTML='<div class="small">No suggestions available.</div>';return}
+   box.innerHTML='<div class="suggestNote">These five names currently have the strongest model setup for the next few trading days. This is a ranking of technical signals, not a prediction or guarantee.</div>'+suggestions.map((x,i)=>renderCard(x,i+1)).join("");
+   return;
+ }
+ const r=view==="plan"?plan:rows;
  if(!r.length){box.innerHTML=view==="plan"&&rows.length?'<div class="status warn">No stock currently passes all BUY ZONE rules. Cash stays unallocated rather than forcing a trade.</div>':'<div class="small">No market data to display yet.</div>';return}
- box.innerHTML=r.map(x=>{
-  const cls=x.signal==="BUY ZONE"?"buy":x.signal==="WAIT"?"wait":"avoid",div=x.dividendYield==null?"N/A":x.dividendYield.toFixed(2)+"%";
-  const pos=x.shares?`<div class="trade"><b>Position:</b> ${x.shares} shares · ${money(x.used,x.currency)}<br><b>Entry:</b> ${money(x.entryLow,x.currency)}–${money(x.entryHigh,x.currency)} · <b>Target:</b> ${money(x.target,x.currency)} · <b>Stop:</b> ${money(x.stop,x.currency)}<br><b>Gross target:</b> ${money(x.grossTarget,x.currency)} · <b>Modeled stop loss:</b> ${money(x.maxLoss,x.currency)}</div>`:`<div class="trade"><b>Modeled entry:</b> ${money(x.entryLow,x.currency)}–${money(x.entryHigh,x.currency)} · <b>Target:</b> ${money(x.target,x.currency)} · <b>Stop:</b> ${money(x.stop,x.currency)}</div>`;
-  return `<div class="candidate"><div class="row"><div><div class="name">${x.name}</div><div class="ticker">${x.ticker} · ${market}</div></div><span class="badge ${cls}">${x.signal}</span></div>
-  <div class="metrics"><div class="metric"><b>${money(x.price,x.currency)}</b><span>EOD PRICE</span></div><div class="metric"><b>${x.beta.toFixed(2)}</b><span>BETA</span></div><div class="metric"><b>${x.rsi.toFixed(0)}</b><span>RSI</span></div><div class="metric"><b>${x.scoutGrade}</b><span>SCOUT GRADE</span></div><div class="metric"><b>${x.dividendYield>0?"YES":"NO"}</b><span>DIVIDEND</span></div><div class="metric"><b>${div}</b><span>TRAILING YIELD</span></div></div>
-  <div class="why"><b>Why:</b> beta ${x.beta.toFixed(2)} (${x.betaObs} aligned sessions); correlation ${x.correlation.toFixed(2)}; annualized volatility ${x.stockVol.toFixed(1)}% vs benchmark ${x.benchmarkVol.toFixed(1)}%; RSI ${x.rsi.toFixed(0)}; ${x.momentum20>=0?"+":""}${x.momentum20.toFixed(1)}% 20-day momentum.</div>
-  <div class="chips"><span class="chip">Score ${x.score.toFixed(0)}/100</span><span class="chip">Beta n=${x.betaObs}</span><span class="chip">ATR ${x.atrPct.toFixed(1)}%</span></div>${pos}
-  <div class="betaDiag"><div class="betaTitle">Beta diagnostics · β ≈ correlation × volatility ratio</div><div class="betaGrid"><div class="betaCell"><b>${x.beta.toFixed(2)}</b><span>BETA</span></div><div class="betaCell"><b>${x.correlation.toFixed(2)}</b><span>CORRELATION</span></div><div class="betaCell"><b>${x.stockVol.toFixed(1)}%</b><span>STOCK VOL.</span></div><div class="betaCell"><b>${x.benchmarkVol.toFixed(1)}%</b><span>BENCHMARK VOL.</span></div><div class="betaCell"><b>${x.volRatio.toFixed(2)}×</b><span>VOL. RATIO</span></div></div></div>
-  <div class="ms"><div class="small"><b>Morningstar:</b> official rating not reproduced.</div><button onclick="window.open('${msURL(x)}','_blank')">Open Morningstar research</button></div></div>`;
- }).join("");
+ box.innerHTML=r.map(x=>renderCard(x)).join("");
 }
 window.addEventListener("load",()=>{refreshData();if("serviceWorker"in navigator&&location.protocol.startsWith("http"))navigator.serviceWorker.register("sw.js").catch(()=>{})});
 </script>
