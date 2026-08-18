@@ -13,12 +13,18 @@ MARKETS={
  "Europe":{
   "currency":"EUR","benchmark":{"ticker":"EXSA.DE","name":"iShares STOXX Europe 600 UCITS ETF"},
   "stocks":[
-   ("Airbus","AIR.PA"),("Schneider Electric","SU.PA"),("LVMH","MC.PA"),("Sanofi","SAN.PA"),
-   ("TotalEnergies","TTE.PA"),("BNP Paribas","BNP.PA"),("AXA","CS.PA"),("Vinci","DG.PA"),
-   ("Siemens","SIE.DE"),("SAP","SAP.DE"),("Allianz","ALV.DE"),("Deutsche Telekom","DTE.DE"),
-   ("Mercedes-Benz","MBG.DE"),("BMW","BMW.DE"),("BASF","BAS.DE"),("Infineon","IFX.DE"),
-   ("ASML","ASML.AS"),("ING","INGA.AS"),("Prosus","PRX.AS"),("Ahold Delhaize","AD.AS"),
-   ("Iberdrola","IBE.MC"),("Inditex","ITX.MC"),("Enel","ENEL.MI"),("UniCredit","UCG.MI")
+   ("Airbus","AIR.PA"),("Schneider Electric","SU.PA"),("LVMH","MC.PA"),("Sanofi","SAN.PA"),("TotalEnergies","TTE.PA"),
+   ("BNP Paribas","BNP.PA"),("AXA","CS.PA"),("Vinci","DG.PA"),("L'Oreal","OR.PA"),("Air Liquide","AI.PA"),
+   ("EssilorLuxottica","EL.PA"),("Danone","BN.PA"),("Pernod Ricard","RI.PA"),("Bouygues","EN.PA"),("Thales","HO.PA"),
+   ("Capgemini","CAP.PA"),("Safran","SAF.PA"),("STMicroelectronics","STMPA.PA"),("Hermes","RMS.PA"),("Publicis Groupe","PUB.PA"),
+   ("Siemens","SIE.DE"),("SAP","SAP.DE"),("Allianz","ALV.DE"),("Deutsche Telekom","DTE.DE"),("Mercedes-Benz","MBG.DE"),
+   ("BMW","BMW.DE"),("BASF","BAS.DE"),("Infineon","IFX.DE"),("Munich Re","MUV2.DE"),("Deutsche Boerse","DB1.DE"),
+   ("Adidas","ADS.DE"),("RWE","RWE.DE"),("E.ON","EOAN.DE"),("Deutsche Bank","DBK.DE"),("Volkswagen Pref","VOW3.DE"),
+   ("Henkel Pref","HEN3.DE"),("Beiersdorf","BEI.DE"),("Symrise","SY1.DE"),("Continental","CON.DE"),("DHL Group","DHL.DE"),
+   ("ASML","ASML.AS"),("ING","INGA.AS"),("Prosus","PRX.AS"),("Ahold Delhaize","AD.AS"),("Unilever","UNA.AS"),
+   ("Heineken","HEIA.AS"),("Philips","PHIA.AS"),("ASM International","ASM.AS"),("Akzo Nobel","AKZA.AS"),("KPN","KPN.AS"),
+   ("Iberdrola","IBE.MC"),("Inditex","ITX.MC"),("Banco Santander","SAN.MC"),("BBVA","BBVA.MC"),("Amadeus IT","AMS.MC"),
+   ("Telefonica","TEF.MC"),("Enel","ENEL.MI"),("UniCredit","UCG.MI"),("Intesa Sanpaolo","ISP.MI"),("Eni","ENI.MI")
   ]},
  "Canada":{
   "currency":"CAD","benchmark":{"ticker":"XIU.TO","name":"iShares S&P/TSX 60 Index ETF"},
@@ -28,7 +34,14 @@ MARKETS={
    ("Suncor Energy","SU.TO"),("Enbridge","ENB.TO"),("Canadian Pacific Kansas City","CP.TO"),("Canadian National Railway","CNR.TO"),
    ("Brookfield Corp.","BN.TO"),("Barrick Mining","ABX.TO"),("Constellation Software","CSU.TO"),("Thomson Reuters","TRI.TO"),
    ("Manulife Financial","MFC.TO"),("Sun Life Financial","SLF.TO"),("TC Energy","TRP.TO"),("Nutrien","NTR.TO"),
-   ("Waste Connections","WCN.TO"),("Dollarama","DOL.TO"),("Fortis","FTS.TO"),("Alimentation Couche-Tard","ATD.TO")
+   ("Waste Connections","WCN.TO"),("Dollarama","DOL.TO"),("Fortis","FTS.TO"),("Alimentation Couche-Tard","ATD.TO"),
+   ("Agnico Eagle Mines","AEM.TO"),("BCE","BCE.TO"),("TELUS","T.TO"),("Power Corp. of Canada","POW.TO"),
+   ("Great-West Lifeco","GWO.TO"),("Intact Financial","IFC.TO"),("Restaurant Brands International","QSR.TO"),("Cameco","CCO.TO"),
+   ("Franco-Nevada","FNV.TO"),("Wheaton Precious Metals","WPM.TO"),("Teck Resources B","TECK-B.TO"),("Imperial Oil","IMO.TO"),
+   ("Pembina Pipeline","PPL.TO"),("Keyera","KEY.TO"),("ARC Resources","ARX.TO"),("Tourmaline Oil","TOU.TO"),
+   ("Loblaw","L.TO"),("Metro","MRU.TO"),("Empire Company A","EMP-A.TO"),("Canadian Tire A","CTC-A.TO"),
+   ("CGI","GIB-A.TO"),("Rogers Communications B","RCI-B.TO"),("Brookfield Infrastructure","BIP-UN.TO"),
+   ("Brookfield Asset Management","BAM.TO"),("Canadian Apartment REIT","CAR-UN.TO"),("Capital Power","CPX.TO")
   ]}
 }
 
@@ -59,7 +72,7 @@ def beta_diag(stock_close, bench_close):
     return {"beta":safe(cov/var),"betaObs":int(len(a)),"correlation":safe(corr),"stockVol":safe(sv),"benchmarkVol":safe(bv),"volRatio":safe(sv/bv if bv else None)}
 
 def history(ticker):
-    df=yf.Ticker(ticker).history(period="18mo",interval="1d",auto_adjust=True,actions=True,repair=True,raise_errors=False)
+    df=yf.Ticker(ticker).history(period="18mo",interval="1d",auto_adjust=True,actions=True,repair=False,raise_errors=False)
     if df is None or df.empty:return None
     idx=pd.to_datetime(df.index)
     if getattr(idx,"tz",None) is not None: idx=idx.tz_localize(None)
