@@ -1,10 +1,12 @@
 from __future__ import annotations
-import json, math, time
+import json, math
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 import yfinance as yf
+from universe import broad_universe
 
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/"data"/"market-data.json"
@@ -79,45 +81,124 @@ def history(ticker):
     df=df.copy();df.index=idx
     return df.sort_index()
 
+def histories(tickers,chunk_size=40):
+    """Download prices in batches to keep a 580-stock workflow practical."""
+    result={}
+    for start in range(0,len(tickers),chunk_size):
+        chunk=tickers[start:start+chunk_size]
+        data=yf.download(chunk,period="18mo",interval="1d",auto_adjust=True,actions=True,repair=False,
+                         group_by="ticker",threads=True,progress=False)
+        for ticker in chunk:
+            try:
+                df=data[ticker].dropna(how="all") if isinstance(data.columns,pd.MultiIndex) else data.dropna(how="all")
+                if df.empty: continue
+                idx=pd.to_datetime(df.index)
+                if getattr(idx,"tz",None) is not None: idx=idx.tz_localize(None)
+                df=df.copy();df.index=idx;result[ticker]=df.sort_index()
+            except Exception: continue
+    return result
+
 def trailing_dividend_yield(df,price):
     if "Dividends" not in df.columns or not price:return None
     cutoff=pd.Timestamp.utcnow().tz_localize(None)-pd.Timedelta(days=365)
     total=float(df.loc[df.index>=cutoff,"Dividends"].fillna(0).sum())
     return safe(total/price*100)
 
+def pct_return(series, sessions):
+    return safe((series.iloc[-1] / series.iloc[-sessions-1] - 1) * 100) if len(series) > sessions else None
+
+def market_regime(bench):
+    c=bench["Close"].dropna(); p=safe(c.iloc[-1]); s20=safe(c.tail(20).mean()); s50=safe(c.tail(50).mean()); s200=safe(c.tail(200).mean())
+    momentum=pct_return(c,20)
+    if p>s20>s50 and p>s200 and momentum>0: label="BULLISH"
+    elif p<s20<s50 and p<s200 and momentum<0: label="BEARISH"
+    else: label="NEUTRAL"
+    return {"label":label,"price":p,"sma20":s20,"sma50":s50,"sma200":s200,"momentum20":momentum}
+
 def analyze(name,ticker,df,bench,currency):
-    if df is None or len(df)<60:return {"name":name,"ticker":ticker,"status":"error","error":"insufficient history"}
+    if df is None or len(df)<210:return {"name":name,"ticker":ticker,"status":"error","error":"insufficient history"}
     c=df["Close"].dropna()
     bd=beta_diag(c,bench["Close"].dropna())
     if not bd:return {"name":name,"ticker":ticker,"status":"error","error":"beta unavailable"}
     price=safe(c.iloc[-1]); a=atr(df)
     if price is None or a is None:return {"name":name,"ticker":ticker,"status":"error","error":"price/ATR unavailable"}
+    volume=df["Volume"].fillna(0) if "Volume" in df.columns else pd.Series(dtype=float)
+    avg_volume20=safe(volume.tail(20).mean()) if len(volume) else None
+    avg_volume60=safe(volume.tail(60).mean()) if len(volume) else None
+    current_volume=safe(volume.iloc[-1]) if len(volume) else None
+    avg_traded=safe((df["Close"].tail(20)*volume.tail(20)).mean()) if len(volume) else None
+    bench_close=bench["Close"].dropna()
+    ret20=pct_return(c,20); ret60=pct_return(c,60)
+    bench20=pct_return(bench_close,20); bench60=pct_return(bench_close,60)
+    support20=safe(df["Low"].tail(20).min()); support50=safe(df["Low"].tail(50).min())
+    resistance20=safe(df["High"].tail(20).max()); resistance50=safe(df["High"].tail(50).max())
     result={"name":name,"ticker":ticker,"currency":currency,"status":"ok","price":price,
             "sma20":safe(c.tail(20).mean()),"sma50":safe(c.tail(50).mean()),
+            "sma200":safe(c.tail(200).mean()),
             "rsi":safe(rsi(c)),"momentum20":safe((c.iloc[-1]/c.iloc[-21]-1)*100 if len(c)>21 else None),
-            "atr":a,"atrPct":safe(a/price*100),"dividendYield":trailing_dividend_yield(df,price)}
+            "atr":a,"atrPct":safe(a/price*100),"dividendYield":trailing_dividend_yield(df,price),
+            "avgVolume20":avg_volume20,"avgVolume60":avg_volume60,"currentVolume":current_volume,
+            "avgTradedValue20":avg_traded,"volumeRatio":safe(current_volume/avg_volume20 if avg_volume20 else None),
+            "return20":ret20,"return60":ret60,
+            "benchmarkReturn20":bench20,"benchmarkReturn60":bench60,
+            "relativeStrength20":safe(ret20-bench20 if ret20 is not None and bench20 is not None else None),
+            "relativeStrength60":safe(ret60-bench60 if ret60 is not None and bench60 is not None else None),
+            "support20":support20,"support50":support50,"resistance20":resistance20,"resistance50":resistance50,
+            "distanceToSupportPct":safe((price-support20)/price*100),
+            "distanceToResistancePct":safe((resistance20-price)/price*100),
+            "distanceFromSma200Pct":None}
+    result["distanceFromSma200Pct"]=safe((price-result["sma200"])/result["sma200"]*100 if result["sma200"] else None)
     result.update(bd)
-    if any(result[k] is None for k in ["sma20","sma50","rsi","momentum20"]):
+    if any(result[k] is None for k in ["sma20","sma50","sma200","rsi","momentum20","avgTradedValue20","volumeRatio","relativeStrength20"]):
         return {"name":name,"ticker":ticker,"status":"error","error":"indicator unavailable"}
+    min_traded=5_000_000
+    result["liquid"]=bool(result["avgTradedValue20"]>=min_traded)
+    result["eligible"]=result["liquid"]
+    result["interesting"]=bool(result["eligible"] and price>=result["sma200"]*.92 and result["relativeStrength20"]>=-5)
     return result
 
+def next_earnings(ticker):
+    try:
+        dates=yf.Ticker(ticker).get_earnings_dates(limit=4)
+        if dates is None or dates.empty:return None
+        now=pd.Timestamp.now(tz="UTC")
+        idx=pd.to_datetime(dates.index,utc=True)
+        future=idx[idx>=now]
+        return future[0].isoformat() if len(future) else None
+    except Exception:return None
+
 def main():
-    payload={"schema":1,"generated_at":datetime.now(timezone.utc).isoformat(),"source":"yfinance via GitHub Actions","markets":{}}
+    payload={"schema":2,"generated_at":datetime.now(timezone.utc).isoformat(),"source":"yfinance via GitHub Actions","markets":{}}
+    core={market:list(cfg["stocks"]) for market,cfg in MARKETS.items()}
+    universe,warnings=broad_universe(core)
+    payload["universe_warnings"]=warnings
     for market,cfg in MARKETS.items():
         print(f"Updating {market}...")
         bench=history(cfg["benchmark"]["ticker"])
         if bench is None or len(bench)<60:
             raise RuntimeError(f"Benchmark failed: {cfg['benchmark']['ticker']}")
+        members=universe[market]
+        downloaded=histories([ticker for _,ticker,_ in members])
         stocks=[]
-        for i,(name,ticker) in enumerate(cfg["stocks"],1):
-            print(f"  {i}/{len(cfg['stocks'])} {ticker}")
+        for i,(name,ticker,currency) in enumerate(members,1):
+            print(f"  {i}/{len(members)} {ticker}")
             try:
-                df=history(ticker)
-                stocks.append(analyze(name,ticker,df,bench,cfg["currency"]))
+                stocks.append(analyze(name,ticker,downloaded.get(ticker),bench,currency))
             except Exception as e:
                 stocks.append({"name":name,"ticker":ticker,"status":"error","error":str(e)})
-            time.sleep(.15)
-        payload["markets"][market]={"currency":cfg["currency"],"benchmark":{**cfg["benchmark"],"observations":int(len(bench))},"stocks":stocks}
+        candidates=[x for x in stocks if x.get("interesting")]
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            jobs={pool.submit(next_earnings,x["ticker"]):x for x in candidates}
+            for job in as_completed(jobs): jobs[job]["nextEarnings"]=job.result()
+        now=datetime.now(timezone.utc)
+        for x in stocks:
+            event=None; days=None
+            if x.get("nextEarnings"):
+                days=(datetime.fromisoformat(x["nextEarnings"])-now).days
+                event=days<=7
+            x["daysToEarnings"]=days; x["eventRisk"]=bool(event)
+        counts={"universe":len(stocks),"dataQuality":sum(x.get("status")=="ok" for x in stocks),"eligible":sum(x.get("eligible",False) for x in stocks),"interesting":sum(x.get("interesting",False) for x in stocks)}
+        payload["markets"][market]={"currency":cfg["currency"],"benchmark":{**cfg["benchmark"],"observations":int(len(bench)),"regime":market_regime(bench)},"funnel":counts,"stocks":stocks}
     OUT.parent.mkdir(parents=True,exist_ok=True)
     OUT.write_text(json.dumps(payload,indent=2,allow_nan=False),encoding="utf-8")
     print(f"Wrote {OUT}")
