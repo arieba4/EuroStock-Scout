@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>EuroStock Scout v3.1</title>
+<title>EuroStock Scout v3.2</title>
 <style>
 :root{--bg:#07111f;--card:#0e1b2e;--card2:#091629;--line:#203550;--text:#f5f7fb;--muted:#94a6bd;--green:#42dda0;--amber:#f3c861;--red:#ff7782;--blue:#77aaff;--chip:#152741}
 *{box-sizing:border-box}html,body{margin:0;background:linear-gradient(180deg,#07111f,#091629 48%,#07111f);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
@@ -53,10 +53,14 @@ footer{font-size:10.5px;color:var(--muted);line-height:1.5;padding:7px 3px}
 <div class="grid2">
 <div><label id="budgetLabel">Budget (€)</label><input id="budget" type="number" value="5000"></div>
 <div><label>Profit target</label><select id="target"><option value=".03">3.0%</option><option selected value=".035">3.5%</option><option value=".04">4.0%</option></select></div>
-<div><label>Preferred beta</label><input id="preferredBeta" type="number" value="1.00" step=".05"></div>
+<div><label>Preferred beta</label><select id="preferredBeta">
+<option value=".7">0.7</option><option value=".8">0.8</option><option value=".9">0.9</option>
+<option selected value="1.0">1.0</option><option value="1.1">1.1</option><option value="1.2">1.2</option><option value="1.3">1.3</option>
+</select></div>
 <div><label>Beta tolerance</label><select id="betaTol"><option value=".15">±0.15</option><option selected value=".25">±0.25</option><option value=".35">±0.35</option></select></div>
 <div><label>Max positions</label><select id="maxPos"><option>2</option><option selected>3</option><option>4</option><option>5</option></select></div>
 <div><label>Risk style</label><select id="risk"><option value="tight">Tight</option><option selected value="balanced">Balanced</option><option value="wide">Wider</option></select></div>
+<div><label>Minimum reward / risk</label><select id="rrLevel"><option value="poor">Poor · ≥ 0.75×</option><option selected value="neutral">Neutral · ≥ 1.25×</option><option value="high">High · ≥ 1.75×</option></select></div>
 </div>
 <button class="primary" onclick="build()">Build trade plan from latest data</button>
 <button class="secondary" onclick="refreshData()">Reload latest GitHub data</button>
@@ -88,11 +92,11 @@ footer{font-size:10.5px;color:var(--muted);line-height:1.5;padding:7px 3px}
 
 <section class="card">
 <div class="title">How “Suggestions · Top 5” works</div>
-<div class="small">The Top 5 is a <b>near-term technical ranking</b>, not a promise or forecast. It rewards a clean bullish trend, constructive-but-not-overbought RSI, positive momentum, beta near your selected target and manageable volatility. A stock may still be labelled <b>WAIT</b> if the setup is attractive but the entry looks stretched.</div>
+<div class="small">The Top 5 is a <b>near-term technical ranking</b>, not a promise or forecast. It rewards a clean bullish trend, constructive-but-not-overbought RSI, positive momentum, beta near your selected target, manageable volatility and a better modeled reward/risk setup. A stock may still be labelled <b>WAIT</b> if the setup is attractive but the entry looks stretched.</div>
 </section>
 
 <section class="card">
-<div class="title">How v3.1 gets market data</div>
+<div class="title">How v3.2 gets market data</div>
 <div class="small">A GitHub Actions job runs on weekdays and can also be started manually. It uses the open-source <b>yfinance</b> Python library on GitHub's server to fetch historical prices and dividends, calculates beta/volatility diagnostics, then commits only the resulting JSON data to this repository. Your phone and laptop no longer make dozens of market-data API calls. The data is intended for personal/research use and is end-of-day/delayed rather than a brokerage execution feed.</div>
 </section>
 <footer>Decision-support prototype only, not individualized investment advice. “Top 5” means strongest model signals, not guaranteed gains. A 3–4% target is an objective, not a guaranteed return. Verify material news, earnings, taxes and actual execution prices before trading.</footer>
@@ -107,7 +111,19 @@ function grade(s){return s>=90?"A+":s>=84?"A":s>=78?"A-":s>=72?"B+":s>=66?"B":s>
 function gradeN(g){return g.startsWith("A")?4:g.startsWith("B")?3:g.startsWith("C")?2:g==="D"?1:0}
 function cur(){return market==="Canada"?"CAD":"EUR"}
 function chooseMarket(m){market=m;document.getElementById("euBtn").classList.toggle("active",m==="Europe");document.getElementById("caBtn").classList.toggle("active",m==="Canada");document.getElementById("budgetLabel").textContent=m==="Canada"?"Budget (C$)":"Budget (€)";build()}
-function opts(){return{budget:+document.getElementById("budget").value||5000,target:+document.getElementById("target").value,pref:+document.getElementById("preferredBeta").value,tol:+document.getElementById("betaTol").value,max:+document.getElementById("maxPos").value,risk:document.getElementById("risk").value}}
+function opts(){return{budget:+document.getElementById("budget").value||5000,target:+document.getElementById("target").value,pref:+document.getElementById("preferredBeta").value,tol:+document.getElementById("betaTol").value,max:+document.getElementById("maxPos").value,risk:document.getElementById("risk").value,rrLevel:document.getElementById("rrLevel").value}}
+function rrThreshold(level){return level==="high"?1.75:level==="neutral"?1.25:.75}
+function rrLabel(rr){return rr>=1.75?"HIGH":rr>=1.25?"NEUTRAL":"POOR"}
+function volLabel(x){return x.volRatio<=1.15?"LOW":x.volRatio<=1.65?"MODERATE":"HIGH"}
+function corrLabel(c){const a=Math.abs(c);return a>=.7?"STRONG":a>=.4?"MODERATE":"WEAK"}
+function setupSummary(x,o){
+ const parts=[x.signal==="BUY ZONE"?"Attractive setup":x.signal==="WAIT"?"Promising, but wait":"Not attractive now"];
+ parts.push(`${volLabel(x).toLowerCase()} relative volatility`);
+ parts.push(`${rrLabel(x.rr).toLowerCase()} reward/risk`);
+ parts.push(Math.abs(x.beta-o.pref)<=o.tol?"beta on target":"beta outside target");
+ if(x.rsi>68)parts.push("RSI stretched"); else if(x.rsi>=42)parts.push("RSI constructive");
+ return parts.join(" · ");
+}
 function score(x,o){
  const d=Math.abs(x.beta-o.pref),bs=100*clamp(1-d/(o.tol*1.8),0,1);
  let tr=50;tr+=x.price>x.sma20?20:-15;tr+=x.sma20>x.sma50?20:-15;if(x.price>x.sma50)tr+=10;tr=clamp(tr,0,100);
@@ -115,9 +131,9 @@ function score(x,o){
  const ms=clamp(55+x.momentum20*5,10,100),risk=x.atrPct<1.2?95:x.atrPct<2?82:x.atrPct<3?65:x.atrPct<4.5?45:25;
  return .30*bs+.25*tr+.20*rs+.15*ms+.10*risk;
 }
-function classify(x,o,s){
- const d=Math.abs(x.beta-o.pref);
- if(s>=68&&d<=o.tol&&x.rsi>=42&&x.rsi<=68&&x.price>=x.sma50*.98)return"BUY ZONE";
+function classify(x,o,s,rr){
+ const d=Math.abs(x.beta-o.pref),rrOK=rr>=rrThreshold(o.rrLevel);
+ if(s>=68&&d<=o.tol&&x.rsi>=42&&x.rsi<=68&&x.price>=x.sma50*.98&&rrOK)return"BUY ZONE";
  if(s>=55&&d<=o.tol*1.25)return"WAIT";
  return"AVOID";
 }
@@ -152,11 +168,16 @@ function build(){
  if(!raw?.markets?.[market]){rows=[];plan=[];render();return}
  const o=opts(),m=raw.markets[market];
  rows=(m.stocks||[]).filter(x=>x.status==="ok"&&Number.isFinite(x.beta)).map(x=>{
-   const s=score(x,o),sig=classify(x,o,s),near=nearTermScore(x,o,s),entryLow=x.price-Math.min(x.atr*.35,x.price*.012),entryHigh=x.price*1.002,entry=(entryLow+entryHigh)/2;
+   const s=score(x,o),entryLow=x.price-Math.min(x.atr*.35,x.price*.012),entryHigh=x.price*1.002,entry=(entryLow+entryHigh)/2;
    const sm=o.risk==="tight"?1.05:o.risk==="wide"?1.75:1.35,stop=Math.max(entry-x.atr*sm,entry*.94),target=entry*(1+o.target);
-   return {...x,score:s,nearTermScore:near,scoutGrade:grade(s),signal:sig,entryLow,entryHigh,entry,stop,target,rr:(target-entry)/(entry-stop)};
+   const rr=(target-entry)/(entry-stop),sig=classify(x,o,s,rr);
+   let near=nearTermScore(x,o,s);
+   if(rr>=1.75)near+=7; else if(rr<1.0)near-=8;
+   if(x.volRatio>1.8)near-=5;
+   near=clamp(near,0,100);
+   return {...x,score:s,nearTermScore:near,scoutGrade:grade(s),signal:sig,entryLow,entryHigh,entry,stop,target,rr};
  }).sort((a,b)=>b.score-a.score);
- suggestions=[...rows].sort((a,b)=>b.nearTermScore-a.nearTermScore).slice(0,5);
+ suggestions=[...rows].sort((a,b)=>(b.nearTermScore+Math.min(b.rr,2)*4)-(a.nearTermScore+Math.min(a.rr,2)*4)).slice(0,5);
  let elig=rows.filter(x=>x.signal==="BUY ZONE").slice(0,o.max);
  const w=elig.map(x=>Math.max(15,x.score)),sum=w.reduce((a,b)=>a+b,0);
  plan=elig.map((x,i)=>{const allocation=o.budget*w[i]/sum,shares=Math.floor(allocation/x.entry),used=shares*x.entry;return shares?{...x,shares,used,grossTarget:used*o.target,maxLoss:shares*(x.entry-x.stop)}:null}).filter(Boolean);
@@ -175,12 +196,13 @@ function render(){
 function msURL(x){return "https://www.google.com/search?q="+encodeURIComponent(`site:morningstar.com ${x.name} ${x.ticker} Morningstar stock rating`)}
 function renderCard(x,rank=null){
  const cls=x.signal==="BUY ZONE"?"buy":x.signal==="WAIT"?"wait":"avoid",div=x.dividendYield==null?"N/A":x.dividendYield.toFixed(2)+"%";
- const pos=x.shares?`<div class="trade"><b>Position:</b> ${x.shares} shares · ${money(x.used,x.currency)}<br><b>Entry:</b> ${money(x.entryLow,x.currency)}–${money(x.entryHigh,x.currency)} · <b>Target:</b> ${money(x.target,x.currency)} · <b>Stop:</b> ${money(x.stop,x.currency)}<br><b>Gross target:</b> ${money(x.grossTarget,x.currency)} · <b>Modeled stop loss:</b> ${money(x.maxLoss,x.currency)}</div>`:`<div class="trade"><b>Modeled entry:</b> ${money(x.entryLow,x.currency)}–${money(x.entryHigh,x.currency)} · <b>Target:</b> ${money(x.target,x.currency)} · <b>Stop:</b> ${money(x.stop,x.currency)}</div>`;
+ const pos=x.shares?`<div class="trade"><b>Position:</b> ${x.shares} shares · ${money(x.used,x.currency)}<br><b>Entry:</b> ${money(x.entryLow,x.currency)}–${money(x.entryHigh,x.currency)} · <b>Target:</b> ${money(x.target,x.currency)} · <b>Stop:</b> ${money(x.stop,x.currency)}<br><b>Reward / risk:</b> ${x.rr.toFixed(2)}× · ${rrLabel(x.rr)}<br><b>Gross target:</b> ${money(x.grossTarget,x.currency)} · <b>Modeled stop loss:</b> ${money(x.maxLoss,x.currency)}</div>`:`<div class="trade"><b>Modeled entry:</b> ${money(x.entryLow,x.currency)}–${money(x.entryHigh,x.currency)} · <b>Target:</b> ${money(x.target,x.currency)} · <b>Stop:</b> ${money(x.stop,x.currency)} · <b>Reward / risk:</b> ${x.rr.toFixed(2)}× (${rrLabel(x.rr)})</div>`;
  return `<div class="candidate"><div class="row"><div style="display:flex;gap:8px">${rank?`<div class="rank">#${rank}</div>`:""}<div><div class="name">${x.name}</div><div class="ticker">${x.ticker} · ${market}</div></div></div><span class="badge ${cls}">${x.signal}</span></div>
  <div class="metrics"><div class="metric"><b>${money(x.price,x.currency)}</b><span>EOD PRICE</span></div><div class="metric"><b>${x.beta.toFixed(2)}</b><span>BETA</span></div><div class="metric"><b>${x.rsi.toFixed(0)}</b><span>RSI</span></div><div class="metric"><b>${x.scoutGrade}</b><span>SCOUT GRADE</span></div><div class="metric"><b>${x.dividendYield>0?"YES":"NO"}</b><span>DIVIDEND</span></div><div class="metric"><b>${div}</b><span>TRAILING YIELD</span></div></div>
- <div class="why"><b>Why:</b> beta ${x.beta.toFixed(2)} (${x.betaObs} aligned sessions); correlation ${x.correlation.toFixed(2)}; annualized volatility ${x.stockVol.toFixed(1)}% vs benchmark ${x.benchmarkVol.toFixed(1)}%; RSI ${x.rsi.toFixed(0)}; ${x.momentum20>=0?"+":""}${x.momentum20.toFixed(1)}% 20-day momentum.</div>
- <div class="chips"><span class="chip">Scout ${x.score.toFixed(0)}/100</span><span class="chip">Near-term ${x.nearTermScore.toFixed(0)}/100</span><span class="chip">Beta n=${x.betaObs}</span><span class="chip">ATR ${x.atrPct.toFixed(1)}%</span></div>${pos}
- <div class="betaDiag"><div class="betaTitle">Beta diagnostics · β ≈ correlation × volatility ratio</div><div class="betaGrid"><div class="betaCell"><b>${x.beta.toFixed(2)}</b><span>BETA</span></div><div class="betaCell"><b>${x.correlation.toFixed(2)}</b><span>CORRELATION</span></div><div class="betaCell"><b>${x.stockVol.toFixed(1)}%</b><span>STOCK VOL.</span></div><div class="betaCell"><b>${x.benchmarkVol.toFixed(1)}%</b><span>BENCHMARK VOL.</span></div><div class="betaCell"><b>${x.volRatio.toFixed(2)}×</b><span>VOL. RATIO</span></div></div></div>
+ <div class="status ${x.signal==="BUY ZONE"?"ok":x.signal==="WAIT"?"warn":""}"><b>Quick read:</b> ${setupSummary(x,opts())}</div>
+ <div class="why"><b>Why:</b> beta ${x.beta.toFixed(2)} (${x.betaObs} aligned sessions); ${corrLabel(x.correlation).toLowerCase()} correlation ${x.correlation.toFixed(2)}; annualized volatility ${x.stockVol.toFixed(1)}% vs benchmark ${x.benchmarkVol.toFixed(1)}% (${volLabel(x).toLowerCase()} relative volatility); RSI ${x.rsi.toFixed(0)}; ${x.momentum20>=0?"+":""}${x.momentum20.toFixed(1)}% 20-day momentum.</div>
+ <div class="chips"><span class="chip">Scout ${x.score.toFixed(0)}/100</span><span class="chip">Near-term ${x.nearTermScore.toFixed(0)}/100</span><span class="chip">R/R ${x.rr.toFixed(2)}× · ${rrLabel(x.rr)}</span><span class="chip">Volatility ${volLabel(x)}</span><span class="chip">Beta n=${x.betaObs}</span><span class="chip">ATR ${x.atrPct.toFixed(1)}%</span></div>${pos}
+ <div class="betaDiag"><div class="betaTitle">Risk diagnostics · plain-language labels + raw numbers</div><div class="betaGrid"><div class="betaCell"><b>${x.beta.toFixed(2)}</b><span>BETA</span></div><div class="betaCell"><b>${x.correlation.toFixed(2)} · ${corrLabel(x.correlation)}</b><span>CORRELATION</span></div><div class="betaCell"><b>${x.stockVol.toFixed(1)}%</b><span>STOCK VOL.</span></div><div class="betaCell"><b>${x.benchmarkVol.toFixed(1)}%</b><span>BENCHMARK VOL.</span></div><div class="betaCell"><b>${x.volRatio.toFixed(2)}× · ${volLabel(x)}</b><span>VOL. RATIO</span></div></div></div>
  <div class="ms"><div class="small"><b>Morningstar:</b> official rating not reproduced.</div><button onclick="window.open('${msURL(x)}','_blank')">Open Morningstar research</button></div></div>`;
 }
 function renderRows(){
