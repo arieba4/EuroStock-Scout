@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
-<title>EuroStock Scout v3.4</title>
+<title>EuroStock Scout v3.4.1</title>
 <style>
 :root{--bg:#07111f;--card:#0e1b2e;--card2:#091629;--line:#203550;--text:#f5f7fb;--muted:#94a6bd;--green:#42dda0;--amber:#f3c861;--red:#ff7782;--blue:#77aaff;--chip:#152741}
 *{box-sizing:border-box}html,body{margin:0;background:linear-gradient(180deg,#07111f,#091629 48%,#07111f);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
@@ -26,17 +26,17 @@ button.primary,button.secondary{width:100%;border-radius:13px;padding:12px;font-
 .why{font-size:12.5px;line-height:1.55;color:#ced9e9}.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}.chip{font-size:10px;background:var(--chip);color:#c2d2e8;border-radius:999px;padding:4px 7px}
 .trade{font-size:12.5px;line-height:1.55;background:var(--card2);border-left:3px solid var(--blue);border-radius:12px;padding:10px;margin-top:9px}
 .betaDiag{margin-top:9px;background:#0a1729;border:1px solid #28405f;border-radius:12px;padding:10px}.betaTitle{font-size:11px;font-weight:850;margin-bottom:7px}.betaGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
-.ms{display:flex;align-items:center;justify-content:space-between;gap:9px;background:#0a1729;border:1px solid #273b57;border-radius:12px;padding:9px;margin-top:9px}.ms button{padding:8px 10px;background:#172a47;color:#eaf2fd;border:1px solid #2d496c;border-radius:10px}
+.ms{display:flex;align-items:center;justify-content:space-between;gap:9px;background:#0a1729;border:1px solid #273b57;border-radius:12px;padding:9px;margin-top:9px}.researchLinks{display:flex;flex-wrap:wrap;gap:7px}.ms button,.ms a{padding:8px 10px;background:#172a47;color:#eaf2fd;border:1px solid #2d496c;border-radius:10px;text-decoration:none;font-size:13px}
 .rank{font-size:22px;font-weight:900;color:var(--blue);min-width:38px}
 .suggestNote{font-size:11px;color:#e0cd94;background:#241f12;border:1px solid #584820;border-radius:12px;padding:10px;margin-bottom:10px;line-height:1.5}
 
 footer{font-size:10.5px;color:var(--muted);line-height:1.5;padding:7px 3px}
-@media(max-width:620px){.tabs{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(3,1fr)}.betaGrid{grid-template-columns:repeat(2,1fr)}.betaGrid .betaCell:last-child{grid-column:1/-1}.grid3{grid-template-columns:1fr 1fr}.grid3 .kpi:last-child{grid-column:1/-1}}
+@media(max-width:620px){.tabs{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(3,1fr)}.betaGrid{grid-template-columns:repeat(2,1fr)}.betaGrid .betaCell:last-child{grid-column:1/-1}.grid3{grid-template-columns:1fr 1fr}.grid3 .kpi:last-child{grid-column:1/-1}.ms{align-items:stretch;flex-direction:column}.researchLinks a{flex:1;text-align:center}}
 </style>
 </head>
 <body>
 <main>
-<header><h1>EuroStock Scout <span style="color:#77aaff">v3.4</span></h1>
+<header><h1>EuroStock Scout <span style="color:#77aaff">v3.4.1</span></h1>
 <div class="sub">End-of-day swing-trading funnel · broad European + Canadian universe · liquidity, relative strength, price structure and event-aware Top 5.</div></header>
 
 <section class="card">
@@ -113,6 +113,12 @@ function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
 function grade(s){return s>=90?"A+":s>=84?"A":s>=78?"A-":s>=72?"B+":s>=66?"B":s>=60?"B-":s>=54?"C+":s>=48?"C":s>=40?"D":"F"}
 function gradeN(g){return g.startsWith("A")?4:g.startsWith("B")?3:g.startsWith("C")?2:g==="D"?1:0}
 function cur(){return market==="Canada"?"CAD":"EUR"}
+function identity(ticker){
+ const exchanges={".TO":["Canada","Toronto Stock Exchange"],".PA":["France","Euronext Paris"],".DE":["Germany","Xetra"],".AS":["Netherlands","Euronext Amsterdam"],".BR":["Belgium","Euronext Brussels"],".MC":["Spain","Bolsa de Madrid"],".MI":["Italy","Borsa Italiana"],".SW":["Switzerland","SIX Swiss Exchange"],".ST":["Sweden","Nasdaq Stockholm"],".HE":["Finland","Nasdaq Helsinki"],".OL":["Norway","Oslo Stock Exchange"],".CO":["Denmark","Nasdaq Copenhagen"]};
+ const suffix=Object.keys(exchanges).find(s=>ticker.endsWith(s));
+ return suffix?exchanges[suffix]:["—","Exchange not identified"];
+}
+function tickerURL(x){return `https://finance.yahoo.com/quote/${encodeURIComponent(x.ticker)}/`}
 function chooseMarket(m){market=m;document.getElementById("euBtn").classList.toggle("active",m==="Europe");document.getElementById("caBtn").classList.toggle("active",m==="Canada");document.getElementById("budgetLabel").textContent=m==="Canada"?"Budget (C$)":"Budget (€)";build()}
 function opts(){return{budget:+document.getElementById("budget").value||5000,target:+document.getElementById("target").value,pref:+document.getElementById("preferredBeta").value,tol:+document.getElementById("betaTol").value,max:+document.getElementById("maxPos").value,risk:document.getElementById("risk").value,rrLevel:document.getElementById("rrLevel").value,eventPolicy:document.getElementById("eventPolicy").value}}
 function rrThreshold(level){return level==="high"?1.75:level==="neutral"?1.25:.75}
@@ -244,15 +250,17 @@ function render(){
 }
 function msURL(x){return "https://www.google.com/search?q="+encodeURIComponent(`site:morningstar.com ${x.name} ${x.ticker} Morningstar stock rating`)}
 function renderCard(x,rank=null){
+ const [country,exchange]=identity(x.ticker);
  const cls=x.signal==="BUY ZONE"?"buy":x.signal==="WAIT"?"wait":"avoid",div=x.dividendYield==null?"N/A":x.dividendYield.toFixed(2)+"%";
  const pos=x.shares?`<div class="trade"><b>Position:</b> ${x.shares} shares · ${money(x.used,x.currency)}<br><b>Entry:</b> ${money(x.entryLow,x.currency)}–${money(x.entryHigh,x.currency)} · <b>Target:</b> ${money(x.target,x.currency)} · <b>Stop:</b> ${money(x.stop,x.currency)}<br><b>Reward / risk:</b> ${x.rr.toFixed(2)}× · ${rrLabel(x.rr)}<br><b>Gross target:</b> ${money(x.grossTarget,x.currency)} · <b>Modeled stop loss:</b> ${money(x.maxLoss,x.currency)}</div>`:`<div class="trade"><b>Modeled entry:</b> ${money(x.entryLow,x.currency)}–${money(x.entryHigh,x.currency)} · <b>Target:</b> ${money(x.target,x.currency)} · <b>Stop:</b> ${money(x.stop,x.currency)} · <b>Reward / risk:</b> ${x.rr.toFixed(2)}× (${rrLabel(x.rr)})</div>`;
- return `<div class="candidate"><div class="row"><div style="display:flex;gap:8px">${rank?`<div class="rank">#${rank}</div>`:""}<div><div class="name">${x.name}</div><div class="ticker">${x.ticker} · ${x.market||market}</div></div></div><span class="badge ${cls}">${x.signal}</span></div>
+ return `<div class="candidate"><div class="row"><div style="display:flex;gap:8px">${rank?`<div class="rank">#${rank}</div>`:""}<div><div class="name">${x.name}</div><div class="ticker">${x.ticker} · ${country} · ${exchange}</div></div></div><span class="badge ${cls}">${x.signal==="BUY ZONE"?"TECHNICAL BUY ZONE":x.signal}</span></div>
  <div class="metrics"><div class="metric"><b>${money(x.price,x.currency)}</b><span>EOD PRICE</span></div><div class="metric"><b>${x.beta.toFixed(2)}</b><span>BETA</span></div><div class="metric"><b>${x.rsi.toFixed(0)}</b><span>RSI</span></div><div class="metric"><b>${x.scoutGrade}</b><span>SCOUT GRADE</span></div><div class="metric"><b>${x.opportunityScore.toFixed(0)}</b><span>OPPORTUNITY</span></div><div class="metric"><b>${x.marketRegime}</b><span>MARKET</span></div></div>
  <div class="status ${x.signal==="BUY ZONE"?"ok":x.signal==="WAIT"?"warn":""}"><b>Quick read:</b> ${setupSummary(x,opts())}</div>
+ <div class="status warn"><b>Verification:</b> Technical signal only. Fundamentals, valuation, company news and analyst revisions are not yet included in this score.</div>
  <div class="why"><b>Why:</b> beta ${x.beta.toFixed(2)} (${x.betaObs} aligned sessions); ${corrLabel(x.correlation).toLowerCase()} correlation ${x.correlation.toFixed(2)}; annualized volatility ${x.stockVol.toFixed(1)}% vs benchmark ${x.benchmarkVol.toFixed(1)}% (${volLabel(x).toLowerCase()} relative volatility); RSI ${x.rsi.toFixed(0)}; ${x.momentum20>=0?"+":""}${x.momentum20.toFixed(1)}% 20-day momentum.</div>
  <div class="chips"><span class="chip">Opportunity ${x.opportunityScore.toFixed(0)}/100</span><span class="chip">Scout ${x.score.toFixed(0)}/100</span><span class="chip">Near-term ${x.nearTermScore.toFixed(0)}/100</span><span class="chip">Relative strength 20d ${x.relativeStrength20>=0?"+":""}${x.relativeStrength20.toFixed(1)}%</span><span class="chip">Relative strength 60d ${x.relativeStrength60>=0?"+":""}${x.relativeStrength60.toFixed(1)}%</span><span class="chip">Volume ${x.volumeRatio.toFixed(2)}× average</span><span class="chip">SMA200 ${x.distanceFromSma200Pct>=0?"+":""}${x.distanceFromSma200Pct.toFixed(1)}%</span><span class="chip">Resistance ${x.distanceToResistancePct.toFixed(1)}% away</span><span class="chip">Support ${x.distanceToSupportPct.toFixed(1)}% away</span>${x.eventRisk?`<span class="chip">⚠ Earnings in ${x.daysToEarnings}d</span>`:""}<span class="chip">R/R ${x.rr.toFixed(2)}× · ${rrLabel(x.rr)}</span><span class="chip">Volatility ${volLabel(x)}</span><span class="chip">ATR ${x.atrPct.toFixed(1)}%</span></div>${pos}
  <div class="betaDiag"><div class="betaTitle">Risk diagnostics · plain-language labels + raw numbers</div><div class="betaGrid"><div class="betaCell"><b>${x.beta.toFixed(2)}</b><span>BETA</span></div><div class="betaCell"><b>${x.correlation.toFixed(2)} · ${corrLabel(x.correlation)}</b><span>CORRELATION</span></div><div class="betaCell"><b>${x.stockVol.toFixed(1)}%</b><span>STOCK VOL.</span></div><div class="betaCell"><b>${x.benchmarkVol.toFixed(1)}%</b><span>BENCHMARK VOL.</span></div><div class="betaCell"><b>${x.volRatio.toFixed(2)}× · ${volLabel(x)}</b><span>VOL. RATIO</span></div></div></div>
- <div class="ms"><div class="small"><b>Morningstar:</b> official rating not reproduced.</div><button onclick="window.open('${msURL(x)}','_blank')">Open Morningstar research</button></div></div>`;
+ <div class="ms"><div class="small"><b>Research:</b> use the exact exchange-qualified ticker <b>${x.ticker}</b> to avoid similarly named securities.</div><div class="researchLinks"><a href="${tickerURL(x)}" target="_blank" rel="noopener noreferrer">Open exact ticker</a><a href="${msURL(x)}" target="_blank" rel="noopener noreferrer">Morningstar research</a></div></div></div>`;
 }
 function renderRows(){
  const box=document.getElementById("results");

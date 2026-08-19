@@ -1,5 +1,9 @@
 # EuroStock Scout v3.4
 
+### v3.4.1 identity safeguards
+
+Candidate cards display country and exchange, link directly to the exchange-qualified Yahoo Finance ticker, and label BUY ZONE as a technical signal until fundamentals, valuation, news and analyst revisions have been verified.
+
 EuroStock Scout is an end-of-day swing-trading decision-support screener for European and Canadian equities. It is not a brokerage feed, forecast, or guarantee of returns.
 
 ## v3.4 screening funnel
