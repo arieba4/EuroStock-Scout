@@ -98,6 +98,24 @@ def histories(tickers,chunk_size=40):
             except Exception: continue
     return result
 
+FX_PAIRS_TO_EUR={"SEK":"SEKEUR=X","CHF":"CHFEUR=X","NOK":"NOKEUR=X","DKK":"DKKEUR=X"}
+
+def currency_rates(loader=history):
+    """Return the value of one local-currency unit in the budget currency."""
+    now=datetime.now(timezone.utc)
+    rates={"EUR":{"rate":1.0,"asOf":now.date().isoformat(),"status":"ok"}}
+    for currency,ticker in FX_PAIRS_TO_EUR.items():
+        try:
+            df=loader(ticker); close=df["Close"].dropna()
+            as_of=pd.Timestamp(close.index[-1]).date()
+            age=(now.date()-as_of).days
+            rate=safe(close.iloc[-1])
+            if not rate or rate<=0: raise ValueError("invalid rate")
+            rates[currency]={"rate":rate,"asOf":as_of.isoformat(),"status":"ok" if age<=7 else "stale"}
+        except Exception as exc:
+            rates[currency]={"rate":None,"asOf":None,"status":"missing","error":str(exc)}
+    return {"EUR":{"rates":rates},"CAD":{"rates":{"CAD":{"rate":1.0,"asOf":now.date().isoformat(),"status":"ok"}}}}
+
 def trailing_dividend_yield(df,price):
     if "Dividends" not in df.columns or not price:return None
     cutoff=pd.Timestamp.utcnow().tz_localize(None)-pd.Timedelta(days=365)
@@ -168,7 +186,8 @@ def next_earnings(ticker):
     except Exception:return None
 
 def main():
-    payload={"schema":2,"generated_at":datetime.now(timezone.utc).isoformat(),"source":"yfinance via GitHub Actions","markets":{}}
+    payload={"schema":3,"generated_at":datetime.now(timezone.utc).isoformat(),"source":"yfinance via GitHub Actions","markets":{}}
+    payload["fx"]=currency_rates()
     core={market:list(cfg["stocks"]) for market,cfg in MARKETS.items()}
     universe,warnings=broad_universe(core)
     payload["universe_warnings"]=warnings
@@ -192,6 +211,8 @@ def main():
             for job in as_completed(jobs): jobs[job]["nextEarnings"]=job.result()
         now=datetime.now(timezone.utc)
         for x in stocks:
+            fx=payload["fx"].get(cfg["currency"],{}).get("rates",{}).get(x.get("currency"),{})
+            x["fxToBudget"]=fx.get("rate");x["fxAsOf"]=fx.get("asOf");x["fxStatus"]=fx.get("status","missing")
             event=None; days=None
             if x.get("nextEarnings"):
                 days=(datetime.fromisoformat(x["nextEarnings"])-now).days
