@@ -1,4 +1,8 @@
-# EuroStock Scout v3.4
+# EuroStock Scout v3.4.2
+
+### v3.4.2 FX-aware position sizing
+
+Trade Plan sizing now converts local listing currencies (SEK, CHF, NOK and DKK) into the European budget currency before calculating share counts. Cards show both the native-currency position value and budget used. Missing or stale FX data safely pauses affected position sizing rather than treating one unit of local currency as one euro.
 
 ### v3.4.1 identity safeguards
 
